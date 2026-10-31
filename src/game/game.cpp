@@ -133,7 +133,6 @@ void Game::StartNewGame()
     m_simulation->NewGame();
     BuildScenes();
     m_hud = std::make_unique<Hud>();
-    m_characters = std::make_unique<CharacterView>(m_device);
 #if defined(GAME_IMGUI_ENABLED)
     for (const std::unique_ptr<IScene>& scene : m_scenes)
         scene->RegisterCheats(m_devUI.GetDebugPad());
