@@ -55,6 +55,8 @@ void LevelView::DrawLawTags(const SceneFrame& frame) const
         const float h = ui.GetLineHeight(kTagText) + 2.0f;
         const float x = at.x / scale - 0.5f * w;
         const float y = at.y / scale - h - 6.0f;
+        if (y < ui.GetContentTop())
+            return; // not over the HUD
         ui.Fill({ at.x / scale - 1.5f, y + h, 3.0f, 6.0f }, color);
         ui.Fill({ x, y, w, h }, color);
         ui.LabelIn({ x, y, w, h }, text, style);

@@ -3,6 +3,7 @@
 #include "game_state.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -226,7 +227,11 @@ namespace
             }
         }
         if (!objects.empty())
-            parts.push_back(objects.size() == 1 ? "a " + objects[0] : std::to_string(objects.size()) + " guns and benches");
+        {
+            std::string first = objects[0];
+            std::transform(first.begin(), first.end(), first.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+            parts.push_back(objects.size() == 1 ? "a " + first : std::to_string(objects.size()) + " guns and benches");
+        }
 
         if (agent.wentBelow && agent.looseMoneySeen >= 1000)
         {
