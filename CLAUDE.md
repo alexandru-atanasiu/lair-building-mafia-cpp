@@ -43,9 +43,9 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | Command | Does |
 |---|---|
 | `view warehouse\|lair\|city` | switch view |
-| `key <name>`, `keydown <name>`, `keyup <name>` | tap / press / release (`tab space escape shift control 1 2 3 w a s d q e left right up down`) |
+| `key <name>`, `keydown <name>`, `keyup <name>` | tap / press / release (`tab space escape shift control 1 2 3 w a s d q e r left right up down`) |
 | `move <x> <y>`, `click <x> <y> [left\|right\|middle]`, `mousedown [b]`, `mouseup [b]`, `wheel <notches>` | mouse |
-| `tile <ground\|under> <x> <z>` | replies `ok <x> <y>`: where that tile's center is on screen in the current view; use it to click on the world |
+| `tile <ground\|under> <x> <z>` | replies `ok <x> <y>`: where that tile's center is on screen in the current view, on top of what's shown there (in the lair, a block of earth at its current height); use it to click on the world |
 | `focus <ground\|under> <x> <z>` | point the current view's camera at a tile |
 | `goto <crew id> <ground\|under> <x> <z>` | send a crew member somewhere (`wander 0` first, or they soon wander off) |
 | `wander 0\|1` | idle crew wander around, or stay put |
@@ -53,10 +53,34 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | `wait <seconds>`, `frames <n>` | wait (real time, frames) before the next command |
 | `screenshot <path>` | PNG of the next finished frame. Use an absolute path (`dev_client.py` makes them absolute); the game's working directory is `__generated\data` |
 | `devui 0\|1`, `debugpad 0\|1` | hide / show ImGui, close / open the DebugPad |
+| `lair` | replies `ok digs=.. builds=.. workers=.. capacity=.. crates=.. protected=.. room1=bunks:x0:z0:x1:z1:working door1=x:z:x\|z:built object1=bunk:x:z:rotation:built ...` |
 | `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crew1=Don Carlo:boss:under:19:24:idle ...` |
 | `quit` | close the game |
 
 Add a command in `DevDriver::Execute`. Ship has no driver: `py/capture_window.py` screenshots a running window from outside and posts clicks and keys to it (`run.bat ship -windowed`, then `python py\capture_window.py "wait 2" "shot a.png" "key tab" "shot b.png" close`).
+
+## The lair
+
+Digging, rooms, doors, objects and the crew's work, on the underground level.
+
+| Where | What |
+|---|---|
+| `src/game/sim/lair_tables.cpp` | The room and object tables. **A new room or object is one entry** (plus meshes in `py/create_meshes.py` and an icon in `py/create_ui_assets.py`); no code knows their names. Effects and uses are fields: `crewBeds`, `crateCapacity`, `protectedMoney`, `useSeconds`, `seat`, `bossSeat`. |
+| `src/game/sim/lair_sim.h` | Tuning constants, state, and the API: `FindLairRoom*`, `GetLairRoomStatus`, `IsLairTileReachable`, `CrewCapacity`, `ExtraCrateCapacity`, `ProtectedMoney`, and `Check*` / `Place*` / `Delete*`. |
+| `src/game/sim/lair_build.cpp` | What may be placed or deleted, and doing it. |
+| `src/game/sim/lair_sim.cpp` | `Tick`: the job queue, workers, keeping crew out of sites, idle crew using rooms. |
+| `src/game/scenes/lair_view.*` | Drawing and the cutaway. |
+| `src/game/scenes/lair_tools.*` | The build menu, room labels, the mouse on the world, ghosts. |
+
+- **Everything placed is paid at once and becomes a `LairJob`.** Cancelling (right click) refunds it all; deleting something built refunds `kLairRefundFraction`. Builds go oldest first, then digs nearest first; each goes to the nearest free crew.
+- **Giving crew other work:** take a member with `away == false && jobId == 0`, set `jobId` to your own non-zero value (below `kLairFirstJobId`, the lair's start at 1,000,000) and clear it when done. The lair leaves anyone with a `jobId` alone. It never gives the boss a job. Idle crew walk about through `LairSim::Tick`, and `wander 0` stops only that, not jobs.
+- **Solid things** are `Tile::solid` (`WorldGrid::SetTileSolid`); `IsWalkable` respects it, so paths do too.
+- **Judging a change:** `lair_build.cpp` tests against `ProjectWorld` (the world with the whole queue finished) and floods from the foot of the stairs before and after. Anything reachable before and not after refuses it, with the reason in words.
+- **Rooms:** a room's walls wait at 100% until nobody stands inside, so nobody is walled in; idle crew are sent out first. A wall shared with another room stays when one is deleted, as does any door in it.
+- **The outermost ring of tiles can't be dug**, so walls never lie on the grid's border. The foot of the stairs stays outside rooms.
+- **Cutaway** (`LairView::AllowedHeight`): along each sight line, an earth block or wall may only be as tall as keeps the first dug tile behind it in view. It's recomputed when the camera or world changes, and heights ease toward it. Picking uses the shown heights, so use `LairView::PickTile` or the dev driver's `tile`, not the ground plane, to aim at earth. A click aimed at a low block behind a tall one correctly hits the tall one.
+- **Translucent drawing:** `MeshRenderer(device, MeshRenderStyle::Translucent)` blends by the color's alpha and doesn't write depth. The lair scene owns one for marks, blueprints and ghosts, drawn after the crew.
+- The lair camera uses a narrow lens (`OrbitCamera::SetVerticalFov`, 32 degrees) from further away, so people at the screen's edges stand upright. `SetDefaultView` sets what `Reset` and the driver's `focus` go to. Middle-drag pans in every 3D view.
 
 ## Build configurations
 
@@ -95,7 +119,7 @@ Add a command in `DevDriver::Execute`. Ship has no driver: `py/capture_window.py
 
 Each system lives in its own files, so parallel work doesn't collide.
 
-- **Simulation** (`sim/`, no rendering or input): `GameState` (`game_state.h`) holds money, heat, the `GameClock` (pause, speeds 1-3, a game day is 2 real minutes at 1x), the `WorldGrid`, the crew list, the news list (`PostEvent`, `events`) and a seeded `random`. It's owned by `Simulation`, which `Game` owns, outside the views, and it runs whichever view is shown. Each later system has its own pair of files, already hooked up: `warehouse_sim.*` (truck), `lair_sim.*` (dig, rooms, objects, jobs; for now idle crew wander), `city_sim.*` (missions), `law_sim.*` (investigators, raids). Add data to the struct and rules to its `Tick(GameState&, const SimStep&)`. `SimStep` is 0 while paused: `simSeconds` (real time x speed) for movement, `gameMinutes` for the day clock.
+- **Simulation** (`sim/`, no rendering or input): `GameState` (`game_state.h`) holds money, heat, the `GameClock` (pause, speeds 1-3, a game day is 2 real minutes at 1x), the `WorldGrid`, the crew list, the news list (`PostEvent`, `events`) and a seeded `random`. It's owned by `Simulation`, which `Game` owns, outside the views, and it runs whichever view is shown. Each later system has its own pair of files, already hooked up: `warehouse_sim.*` (truck), `lair_sim.*` (dig, rooms, objects, jobs, crew use of rooms: see "The lair" above), `city_sim.*` (missions), `law_sim.*` (investigators, raids). Add data to the struct and rules to its `Tick(GameState&, const SimStep&)`. `SimStep` is 0 while paused: `simSeconds` (real time x speed) for movement, `gameMinutes` for the day clock.
 - **World** (`world/`): `WorldGrid` (`world_grid.h`) is two levels of tiles (`TileKind`: Earth, Floor, Pavement, Stairwell; a free `room` index), walls and doors on tile edges (`GetEdge/SetEdge`), stairs (`AddStair`), `TileCenter`/`WorldToTile`, and a revision number that changes with it. World units are metres, a tile is 2 x 2, walls 2.4 high, the underground floor at y = -4. `world_path.h`: `FindTilePath` (A* over tiles and stair links, across levels), `FindWorldPath` (waypoints with corners cut), `HasClearLine`, `FindNearestWalkable`. `world_layout.cpp` is the starting layout. `WorldView` (`world_view.h`) draws a level. Dig and room rules are not here: they change tiles and edges through this API.
 - **Characters** (`character/`): everyone is the same model, `assets/animated/soldier.blend`. `CharacterMotion` (`character_motion.h`, simulation data): position, level, path; `SendCharacterTo(motion, world, tile)`, `UpdateCharacterMotion` (re-plans when the world's revision changes). `CharacterView` (`character_view.h`, one shared, owned by `Game`): `Animate(id, motion, simSeconds)` cross-fades idle and run through one `Animator` layer per clip, with the run rate following the speed; `Draw(scope, id, motion, tint)`. **Per-character color**: the body material is near white, so `tint` is the body's color (the joints stay near black); the model isn't touched. Ids come from `GameState::nextCharacterId`. `CrewMember` has `role` (`CrewRole::Boss` / `Soldier`) and `tint`; the boss is the one saturated color (red), so keep other crew dull.
 - **Views** (`scene.h`, `scenes/`): `IScene` (name, clear color, `Update(const SceneFrame&)`, `Draw(SceneRenderers)`, `OnDeactivate`, `RegisterCheats`), one per `ViewId`: `WarehouseScene`, `LairScene`, `CityScene`, built with `SceneServices`. Scenes keep no game state. `LevelView` (`scenes/level_view.h`) is what the 3D ones share: an `OrbitCamera` on a level, lighting, drawing the grid and the crew, `TileUnderCursor`. Add scene meshes in its `drawExtras`.

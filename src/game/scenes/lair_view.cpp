@@ -45,6 +45,7 @@ namespace
     const Color kChipColor       = { 0.46f, 0.36f, 0.26f, 1.0f };
 
     const Color kDigMark         = { 0.95f, 0.72f, 0.15f, 0.40f };
+    const Color kDigWaiting      = { 0.70f, 0.62f, 0.42f, 0.22f }; // marked, but nobody can get to it yet
     const Color kSiteOverlay     = { 0.35f, 0.65f, 0.95f, 0.22f };
     const Color kWallBlueprint   = { 0.45f, 0.75f, 1.00f, 0.30f };
     const Color kDoorBlueprint   = { 0.45f, 0.75f, 1.00f, 0.55f };
@@ -481,7 +482,7 @@ void LairView::DrawOverlays(MeshRenderer::Scope& translucent) const
     {
         if (job.kind == LairJobKind::Dig)
         {
-            DrawTileOverlay(translucent, job.tile, kDigMark);
+            DrawTileOverlay(translucent, job.tile, IsLairDigReachable(m_state, job.tile) ? kDigMark : kDigWaiting);
         }
         else if (job.kind == LairJobKind::Door)
         {

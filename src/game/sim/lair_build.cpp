@@ -277,6 +277,15 @@ bool IsLairTileReachable(const GameState& state, const TileCoord& tile)
     return index < state.lair.reachable.size() && state.lair.reachable[index];
 }
 
+bool IsLairDigReachable(const GameState& state, const TileCoord& tile)
+{
+    const auto open = [&](int dx, int dz, EdgeSide side) {
+        const TileCoord next = { tile.level, tile.x + dx, tile.z + dz };
+        return state.world.IsWalkable(next) && IsLairTileReachable(state, next) && state.world.GetEdge(tile, side) != EdgeKind::Wall;
+    };
+    return open(1, 0, EdgeSide::PosX) || open(-1, 0, EdgeSide::NegX) || open(0, 1, EdgeSide::PosZ) || open(0, -1, EdgeSide::NegZ);
+}
+
 void RefreshLairReachable(GameState& state)
 {
     if (state.lair.reachableRevision == state.world.GetRevision() && !state.lair.reachable.empty())

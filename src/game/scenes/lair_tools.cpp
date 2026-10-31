@@ -593,7 +593,7 @@ void LairTools::UpdateDig(const SceneFrame& frame, const TileCoord& tile, bool o
             }
             else if (rect.x0 == rect.x1 && rect.z0 == rect.z1)
             {
-                reason = check.reason;
+                reason = FindLairDigJob(m_state, c) && !IsLairDigReachable(m_state, c) ? "Marked. Nobody can reach it yet: it waits for the tiles next to it" : check.reason;
             }
         }
     }

@@ -214,6 +214,8 @@ const LairJob*    FindLairDigJob(const GameState& state, const TileCoord& tile);
 const LairJob*    FindLairJobFor(const GameState& state, LairJobKind kind, int target);
 LairRoomStatus    GetLairRoomStatus(const GameState& state, const LairRoom& room);
 bool              IsLairTileReachable(const GameState& state, const TileCoord& tile);
+// Someone can walk up to this earth tile now. A marked tile that can't waits for its neighbors.
+bool              IsLairDigReachable(const GameState& state, const TileCoord& tile);
 // The footprint of an object, wherever it's placed.
 std::vector<TileCoord> GetLairObjectTiles(const LairObjectType& type, const TileCoord& tile, int rotation);
 // Middle of a footprint on the floor, and an edge's middle.
