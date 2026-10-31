@@ -21,4 +21,7 @@ private:
     float    m_barBottom    = 0.0f;
     uint64_t m_shownEvent   = 0; // id of the news line on show
     float    m_shownSeconds = 0.0f;
+    float    m_lastHeat     = 0.0f; // the heat bar warns when it jumps
+    float    m_heatRise     = 0.0f; // how much it rose, while the warning shows
+    float    m_heatWarning  = 0.0f; // real seconds left of the warning
 };

@@ -4,6 +4,7 @@
 #include "platform/window.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iterator>
 #include <string>
@@ -14,6 +15,8 @@ namespace
     constexpr float kButtonSize  = 32.0f;
     constexpr float kViewButtonW = 118.0f;
     constexpr float kNewsSeconds = 6.0f; // real seconds a news line stays
+    constexpr float kHeatWarningSeconds = 5.0f; // real seconds the heat bar flashes after a rise
+    constexpr float kHeatJump           = 0.5f; // less than this isn't a rise worth a warning
 
     struct ViewButton
     {
@@ -87,13 +90,43 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
     // Heat
     ui.Image({ x, topInset + 12.0f, 22.0f, 22.0f }, ui.Texture("ui/icons/heat.tex"), HeatColor(state.heat));
     x += 28.0f;
-    char heatText[16];
-    snprintf(heatText, sizeof(heatText), "%d", (int)(state.heat + 0.5f));
+    if (state.heat > m_lastHeat + kHeatJump)
+    {
+        m_heatRise    = m_heatWarning > 0.0f ? m_heatRise + state.heat - m_lastHeat : state.heat - m_lastHeat;
+        m_heatWarning = kHeatWarningSeconds;
+    }
+    m_lastHeat = state.heat;
+
+    char heatText[32];
+    snprintf(heatText, sizeof(heatText), "%d  %s", (int)(state.heat + 0.5f), GetHeatBandName(state.heat));
     const UiRect heatBar = { x, topInset + 13.0f, 150.0f, 20.0f };
-    ui.ProgressBar(heatBar, state.heat / 100.0f, HeatColor(state.heat), heatText);
+    ui.ProgressBar(heatBar, state.heat / 100.0f, HeatColor(state.heat));
+    for (float band : { 0.25f, 0.5f, 0.75f }) // where missions get harder
+        ui.Fill({ heatBar.x + heatBar.w * band, heatBar.y + 1.0f, 1.0f, heatBar.h - 2.0f }, { 0.0f, 0.0f, 0.0f, 0.55f });
+    Ui::TextStyle heatStyle;
+    heatStyle.size = 14.0f;
+    heatStyle.bold = true;
+    ui.LabelIn(heatBar, heatText, heatStyle);
+    if (m_heatWarning > 0.0f)
+    {
+        const float pulse = 0.5f + 0.5f * std::sin(m_heatWarning * 8.0f);
+        ui.Frame({ heatBar.x - 2.0f, heatBar.y - 2.0f, heatBar.w + 4.0f, heatBar.h + 4.0f }, 2.0f, { 1.0f, 0.62f + 0.3f * pulse, 0.2f, 1.0f });
+        char rise[16];
+        snprintf(rise, sizeof(rise), "+%d", (int)std::ceil(m_heatRise));
+        Ui::TextStyle riseStyle;
+        riseStyle.size  = 16.0f;
+        riseStyle.bold  = true;
+        riseStyle.color = { 1.0f, 0.70f, 0.28f, 1.0f };
+        ui.Label({ heatBar.x + heatBar.w + 7.0f, heatBar.y }, rise, riseStyle);
+    }
     if (ui.IsHovered(heatBar))
-        ui.Tooltip("Heat: the law's interest in you.");
-    x += heatBar.w + 24.0f;
+    {
+        char tip[160];
+        snprintf(tip, sizeof(tip), "Heat: the law's interest in you.\nMissions are %d%% less likely to succeed at this heat.\nIt falls every hour, slower while men are out.",
+                 -GetHeatChancePenalty(state.heat));
+        ui.Tooltip(tip);
+    }
+    x += heatBar.w + 40.0f;
 
     // Clock and speeds
     char clockText[32];
@@ -146,6 +179,8 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
 
 void Hud::DrawNews(Ui& ui, const GameState& state, float realSeconds)
 {
+    m_heatWarning = std::max(0.0f, m_heatWarning - realSeconds);
+
     if (state.events.empty())
         return;
 

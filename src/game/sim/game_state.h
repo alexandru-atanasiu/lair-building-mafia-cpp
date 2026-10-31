@@ -85,6 +85,10 @@ struct CrewMember
     Color           tint; // the body's color: every character is the same model, see CharacterView
     CharacterMotion motion;
     bool            away = false;     // out on a mission: not in the place, not drawn
+    int             jobId = 0;        // 0 = free for work; set by whoever gives crew work
+    int             muscle = 2;       // 1..5, see CitySim
+    int             brains = 2;
+    int             nerve = 2;
     float           idleTime = 0.0f;  // sim seconds left before wandering on (lair_sim.cpp)
 };
 

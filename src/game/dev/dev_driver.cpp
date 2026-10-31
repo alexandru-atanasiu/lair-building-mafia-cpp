@@ -3,6 +3,7 @@
 #if defined(GAME_DEV_TOOLS_ENABLED)
 
 #include "../camera/orbit_camera.h"
+#include "city_dev.h"
 #include "../sim/simulation.h"
 #include "core/log.h"
 #include "render/render_device.h"
@@ -237,6 +238,7 @@ void DevDriver::EndFrame()
 //   tile <ground|under> <x> <z>  replies "ok <x> <y>": where a tile is on screen in this view
 //   focus <ground|under> <x> <z> point this view's camera at a tile
 //   wander <0|1>                 idle crew wander, or stay put
+//   city <what> ...              missions and markers: see city_dev.h
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
 //   state                        replies "ok view=... money=... crew1=Don Carlo:boss:under:19:19:idle ..."
@@ -395,6 +397,10 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
             snprintf(position, sizeof(position), "ok %d %d", (int)screen.x, (int)screen.y);
             reply = position;
         }
+    }
+    else if (word == "city")
+    {
+        reply = ExecuteCityCommand(state, in);
     }
     else if (word == "wander")
     {

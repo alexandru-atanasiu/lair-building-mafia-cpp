@@ -32,7 +32,7 @@ void LairSim::Tick(GameState& state, const SimStep& step)
 
     for (CrewMember& member : state.crew)
     {
-        if (member.away || member.motion.IsMoving())
+        if (member.away || member.jobId != 0 || member.motion.IsMoving())
             continue;
 
         member.idleTime -= step.simSeconds;
