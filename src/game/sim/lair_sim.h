@@ -13,3 +13,6 @@ struct LairSim
 
     void Tick(GameState& state, const SimStep& step);
 };
+
+// Crates the lair's storage holds beyond the warehouse's racks.
+int ExtraCrateCapacity(const GameState& state);

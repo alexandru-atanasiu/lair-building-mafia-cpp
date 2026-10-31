@@ -75,6 +75,7 @@ namespace
             << " speed=" << state.clock.GetSpeed() << " paused=" << (state.clock.IsPaused() ? 1 : 0)
             << " width=" << window.GetWidth() << " height=" << window.GetHeight() << " dpi=" << window.GetDpiScale()
             << " events=" << state.events.size();
+        out << DescribeWarehouseForDev(state);
         if (!state.events.empty())
             out << " lastevent=\"" << state.events.back().text << "\"";
         for (const CrewMember& member : state.crew)
@@ -237,6 +238,9 @@ void DevDriver::EndFrame()
 //   tile <ground|under> <x> <z>  replies "ok <x> <y>": where a tile is on screen in this view
 //   focus <ground|under> <x> <z> point this view's camera at a tile
 //   wander <0|1>                 idle crew wander, or stay put
+//   order <cigarettes|booze|contraband>, shipout  the warehouse panel's buttons
+//   crates <n>                   set the stored crates
+//   crewjob <crew id> <n>        set a crew member's jobId: non-zero makes them busy
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
 //   state                        replies "ok view=... money=... crew1=Don Carlo:boss:under:19:19:idle ..."
@@ -415,6 +419,42 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
         in >> open;
         if (m_hooks.setDebugPadOpen)
             m_hooks.setDebugPadOpen(open != 0);
+    }
+    else if (word == "order")
+    {
+        std::string name;
+        in >> name;
+        int kind = -1;
+        for (int i = 0; i < GetShipmentKindCount(); ++i)
+            if (name == GetShipmentKind(i).devName)
+                kind = i;
+        if (kind < 0)
+            return fail("order what? cigarettes, booze or contraband");
+        const char* why = "";
+        if (!CanOrderShipment(state, kind, &why))
+            return fail(why);
+        OrderShipment(state, kind);
+    }
+    else if (word == "shipout")
+    {
+        const char* why = "";
+        if (!CanShipOut(state, &why))
+            return fail(why);
+        OrderShipOut(state);
+    }
+    else if (word == "crates")
+    {
+        in >> state.crates;
+    }
+    else if (word == "crewjob")
+    {
+        uint32_t id  = 0;
+        int      job = 0;
+        in >> id >> job;
+        CrewMember* member = state.FindCrew(id);
+        if (!member)
+            return fail("no such crew member");
+        member->jobId = job;
     }
     else if (word == "state")
     {

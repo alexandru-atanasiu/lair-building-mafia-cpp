@@ -25,6 +25,12 @@ namespace
     }
 }
 
+// Stub until lair-building's storage objects are merged: replace with theirs.
+int ExtraCrateCapacity(const GameState&)
+{
+    return 0;
+}
+
 void LairSim::Tick(GameState& state, const SimStep& step)
 {
     if (!wanderEnabled)
@@ -32,7 +38,7 @@ void LairSim::Tick(GameState& state, const SimStep& step)
 
     for (CrewMember& member : state.crew)
     {
-        if (member.away || member.motion.IsMoving())
+        if (member.away || member.jobId != 0 || member.motion.IsMoving())
             continue;
 
         member.idleTime -= step.simSeconds;

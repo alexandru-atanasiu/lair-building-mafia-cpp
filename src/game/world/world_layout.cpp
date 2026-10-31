@@ -1,5 +1,7 @@
 #include "world_layout.h"
 
+#include "warehouse_layout.h"
+
 namespace
 {
     constexpr TileCoord kStairUpper = { WorldLevel::Ground, 20, 14 };
@@ -51,6 +53,7 @@ WorldGrid MakeStartingWorld()
     world.SetEdge({ WorldLevel::Underground, 21, kSecondRoom.z0 }, EdgeSide::NegZ, EdgeKind::Door);
 
     world.AddStair(kStairUpper, kStairLower);
+    LayOutWarehouse(world);
     return world;
 }
 

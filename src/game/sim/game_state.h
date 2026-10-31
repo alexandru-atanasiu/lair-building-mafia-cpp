@@ -86,6 +86,7 @@ struct CrewMember
     CharacterMotion motion;
     bool            away = false;     // out on a mission: not in the place, not drawn
     float           idleTime = 0.0f;  // sim seconds left before wandering on (lair_sim.cpp)
+    int             jobId = 0;        // 0 = free for work; whoever gives crew work sets their own value, and clears it when done
 };
 
 struct GameState
@@ -107,6 +108,7 @@ struct GameState
     std::deque<GameEvent>   events; // oldest first
     uint64_t                nextEventId = 1;
     uint32_t                nextCharacterId = 1; // for anything drawn through CharacterView
+    int                     crates = 0; // smuggled crates in the warehouse: WarehouseSim::stored says where
     std::minstd_rand        random; // fixed seed: runs repeat
 
     WarehouseSim warehouse;

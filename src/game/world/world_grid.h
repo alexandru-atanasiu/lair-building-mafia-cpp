@@ -33,6 +33,7 @@ enum class TileKind : uint8_t
     Floor,     // indoors: walkable
     Pavement,  // outdoors on the ground level: walkable
     Stairwell, // the slope of a staircase: only walked through the stair link
+    Fixture,   // indoors with something fixed standing on it: drawn as floor, not walkable
 };
 
 enum class EdgeKind : uint8_t
