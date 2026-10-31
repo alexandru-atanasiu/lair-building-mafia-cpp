@@ -1,0 +1,5 @@
+ozz-animation 0.17.0 (commit 744eb9d99f606eda849acb0b1204f7a3dc20bca1)
+https://github.com/guillaumeblanc/ozz-animation
+
+Unmodified subset needed to compile: include/ozz/{base,animation}, src/base,
+src/animation/{runtime,offline} (without the fbx/gltf importers and tools).
