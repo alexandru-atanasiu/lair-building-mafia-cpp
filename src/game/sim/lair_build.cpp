@@ -861,6 +861,14 @@ LairCheck CheckDeleteLairObject(const GameState& state, const LairObject& object
     return check;
 }
 
+void RemoveLairObjectForRaid(GameState& state, int objectId)
+{
+    // DeleteLairObject, with its refund taken back.
+    const int64_t money = state.money;
+    DeleteLairObject(state, objectId);
+    state.money = money;
+}
+
 LairCheck DeleteLairObject(GameState& state, int objectId)
 {
     const auto found = std::find_if(state.lair.objects.begin(), state.lair.objects.end(), [&](const LairObject& object) { return object.id == objectId; });

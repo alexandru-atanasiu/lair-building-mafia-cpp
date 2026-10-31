@@ -16,7 +16,7 @@ namespace
         // name          lower          dev            crates cost  hours heat  sale per crate
         { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  1,    1.0f, 350 },
         { "Booze",      "booze",      "booze",         8,    2400,  1,    3.0f, 640 },
-        { "Contraband", "contraband", "contraband",    6,    4000,  3,    9.0f, 1500 },
+        { "Contraband", "contraband", "contraband",    6,    4000,  3,    18.0f, 1500 },
     };
     constexpr int   kTruckCapacity     = 12;   // crates a Ship out can take at once
     constexpr int   kPickupHours       = 1;    // Ship out: until the truck turns up
@@ -620,6 +620,7 @@ namespace
             if (payment.minutesLeft > 0.0f)
                 continue;
             state.money += payment.amount;
+            sim.moneyEarned += payment.amount;
             char text[120];
             snprintf(text, sizeof(text), "%s came in for %d %s.", WarehouseMoneyText(payment.amount).c_str(), payment.crates, PluralCrates(payment.crates));
             state.PostEvent(GameEventKind::Good, text);
@@ -764,6 +765,26 @@ bool OrderShipOut(GameState& state)
     SetPhase(sim, TruckPhase::OnItsWay);
     state.PostEvent(GameEventKind::Info, "Sent for the truck to ship crates out.");
     return true;
+}
+
+int AbandonWarehouse(GameState& state)
+{
+    WarehouseSim& sim = state.warehouse;
+    for (CrateCarrier& carrier : sim.carriers)
+        ReleaseCarrier(state, carrier, false); // a crate in his hands goes back, to be counted
+    sim.carriers.clear();
+
+    const bool  docked = sim.phase != TruckPhase::Gone && sim.phase != TruckPhase::DrivingOff;
+    const int   lost   = (int)sim.stored.size() + (docked ? (int)sim.cargo.size() : 0);
+    sim.stored.clear();
+    sim.cargo.clear();
+    state.crates = 0;
+
+    SetDoorEdges(state, false);
+    sim.openAmount = 0.0f;
+    sim.hold       = TruckHold::None;
+    SetPhase(sim, TruckPhase::Gone);
+    return lost;
 }
 
 std::string DescribeTruck(const GameState& state)

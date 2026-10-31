@@ -17,6 +17,10 @@ namespace
     constexpr float kNewsSeconds = 6.0f; // real seconds a news line stays
     constexpr float kHeatWarningSeconds = 5.0f; // real seconds the heat bar flashes after a rise
     constexpr float kHeatJump           = 0.5f; // less than this isn't a rise worth a warning
+    constexpr float kEvidenceBarW       = 128.0f;
+    constexpr float kEscapesW           = 84.0f;
+    constexpr float kNarrowHudBelow     = 1270.0f; // logical width under which the view buttons lose their labels
+    constexpr float kNarrowViewButtonW  = 38.0f;
 
     struct ViewButton
     {
@@ -128,6 +132,40 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
     }
     x += heatBar.w + 40.0f;
 
+    // Evidence, with the raid's threshold marked, then the escapes left.
+    const float   evidence    = state.law.evidence;
+    const UiRect  evidenceBar = { x, topInset + 13.0f, kEvidenceBarW, 20.0f };
+    const bool    pastRaidLine = evidence >= kRaidEvidence;
+    ui.ProgressBar(evidenceBar, evidence / kEvidenceMax, pastRaidLine ? Color{ 0.85f, 0.25f, 0.18f, 1.0f } : Color{ 0.72f, 0.58f, 0.30f, 1.0f });
+    const float raidLineX = evidenceBar.x + evidenceBar.w * kRaidEvidence / kEvidenceMax;
+    // Notches above and below, so the label stays readable.
+    ui.Fill({ raidLineX - 1.0f, evidenceBar.y - 4.0f, 2.0f, 5.0f }, { 1.0f, 0.95f, 0.85f, 1.0f });
+    ui.Fill({ raidLineX - 1.0f, evidenceBar.y + evidenceBar.h - 1.0f, 2.0f, 5.0f }, { 1.0f, 0.95f, 0.85f, 1.0f });
+    char evidenceText[32];
+    snprintf(evidenceText, sizeof(evidenceText), "Evidence %d", (int)(evidence + 0.5f));
+    ui.LabelIn(evidenceBar, evidenceText, heatStyle);
+    if (ui.IsHovered(evidenceBar))
+    {
+        char tip[360];
+        snprintf(tip, sizeof(tip), "Evidence: what investigators have reported.\nA raid comes when it passes the mark (%d) while heat is %d or more.\nCrates count, contraband worst, as do gun racks and money outside a vault.\nShelves in Storage and a Vault help. A Bribe lowers it.\nIt fades slowly while heat is under %d.",
+                 (int)kRaidEvidence, (int)kRaidHeat, (int)kEvidenceDecayHeat);
+        ui.Tooltip(tip);
+    }
+    x += evidenceBar.w + 12.0f;
+
+    const int escapes = state.law.EscapesLeft();
+    Ui::TextStyle escapesStyle;
+    escapesStyle.size  = 15.0f;
+    escapesStyle.bold  = true;
+    escapesStyle.color = escapes >= 2 ? Color{ 0.75f, 0.85f, 0.65f, 1.0f } : escapes == 1 ? Color{ 1.0f, 0.70f, 0.28f, 1.0f } : Color{ 1.0f, 0.35f, 0.25f, 1.0f };
+    char escapesText[32];
+    snprintf(escapesText, sizeof(escapesText), "Escapes %d", escapes);
+    const UiRect escapesRect = { x, topInset + 13.0f, kEscapesW - 8.0f, 20.0f };
+    ui.LabelIn(escapesRect, escapesText, escapesStyle);
+    if (ui.IsHovered(escapesRect))
+        ui.Tooltip("How many raids the boss can still get away from.\nEach one costs money, crates and half your objects. The one after that catches him.");
+    x += kEscapesW;
+
     // Clock and speeds
     char clockText[32];
     snprintf(clockText, sizeof(clockText), "Day %d  %02d:%02d", state.clock.GetDay(), state.clock.GetHour(), state.clock.GetMinute());
@@ -155,21 +193,26 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
     }
 
     // View switch, at the right end.
-    float viewX = ui.GetWidth() - 14.0f - (kViewButtonW + 4.0f) * (float)std::size(kViewButtons);
+    const bool  narrow  = ui.GetWidth() < kNarrowHudBelow;
+    const float buttonW = narrow ? kNarrowViewButtonW : kViewButtonW;
+    float viewX = ui.GetWidth() - 14.0f - (buttonW + 4.0f) * (float)std::size(kViewButtons);
     for (const ViewButton& button : kViewButtons)
     {
-        const UiRect    r = { viewX, buttonY, kViewButtonW, kButtonSize };
+        const UiRect    r = { viewX, buttonY, buttonW, kButtonSize };
         Ui::ButtonStyle style;
         style.selected = active == button.view;
         if (ui.Button(r, "", style))
             view = button.view;
         ui.Image({ r.x + 8.0f, r.y + 6.0f, 20.0f, 20.0f }, ui.Texture(button.icon));
-        Ui::TextStyle text;
-        text.bold = style.selected;
-        ui.Label({ r.x + 34.0f, r.y + 6.0f }, button.label, text);
+        if (!narrow)
+        {
+            Ui::TextStyle text;
+            text.bold = style.selected;
+            ui.Label({ r.x + 34.0f, r.y + 6.0f }, button.label, text);
+        }
         if (ui.IsHovered(r))
             ui.Tooltip("Switch view (Tab)");
-        viewX += kViewButtonW + 4.0f;
+        viewX += buttonW + 4.0f;
     }
 
     m_barBottom = topInset + kBarHeight;
@@ -177,9 +220,45 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
     return view;
 }
 
+void Hud::DrawLawBanner(Ui& ui, const GameState& state) const
+{
+    const LawSim& law = state.law;
+    std::string   text;
+    Color         back = { 0.32f, 0.25f, 0.10f, 0.92f };
+    if (law.phase == RaidPhase::Warning)
+    {
+        const int minutes = std::max(0, (int)law.warningMinutes);
+        char      line[120];
+        snprintf(line, sizeof(line), "RAID in %dh %02dm: ship crates out, send men on missions", minutes / 60, minutes % 60);
+        text = line;
+        back = { 0.55f + 0.25f * std::sin(m_pulse * 6.0f), 0.08f, 0.06f, 0.95f };
+    }
+    else if (law.phase == RaidPhase::Police)
+    {
+        text = law.policeInside ? "RAID: the police are inside" : "RAID: the police are at the door";
+        back = { 0.08f, 0.16f, 0.55f + 0.25f * std::sin(m_pulse * 6.0f), 0.95f };
+    }
+    else if (const int count = law.CountAgents(LawAgentKind::Investigator); count > 0)
+    {
+        text = count == 1 ? "An investigator is about" : std::to_string(count) + " investigators are about";
+    }
+    if (text.empty())
+        return;
+    Ui::TextStyle style;
+    style.bold = true;
+    const float w = ui.MeasureText(text, style.size, true) + 20.0f;
+    const float h = ui.GetLineHeight() + 6.0f;
+    const UiRect r = { 0.5f * (ui.GetWidth() - w), m_barBottom + 30.0f, w, h };
+    ui.Fill(r, back);
+    ui.LabelIn(r, text, style);
+}
+
 void Hud::DrawNews(Ui& ui, const GameState& state, float realSeconds)
 {
     m_heatWarning = std::max(0.0f, m_heatWarning - realSeconds);
+    m_pulse += realSeconds;
+
+    DrawLawBanner(ui, state);
 
     if (state.events.empty())
         return;

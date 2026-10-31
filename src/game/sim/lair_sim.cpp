@@ -428,6 +428,12 @@ namespace
             if (rect.Contains(tile.x, tile.z))
                 return true;
         }
+        for (const LawAgent& agent : state.law.agents)
+        {
+            const TileCoord tile = state.world.WorldToTile(agent.motion.level, agent.motion.position);
+            if (agent.motion.level == kLevel && rect.Contains(tile.x, tile.z))
+                return true;
+        }
         return false;
     }
 

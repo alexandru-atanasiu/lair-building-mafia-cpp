@@ -15,6 +15,9 @@ public:
     // Advances the clock and every system. Returns the step taken (0 while paused).
     SimStep Advance(float realSeconds);
 
+    // Everything back to the first morning.
+    void NewGame() { m_state = GameState(); }
+
     GameState&       GetState() { return m_state; }
     const GameState& GetState() const { return m_state; }
 

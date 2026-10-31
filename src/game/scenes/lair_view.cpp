@@ -240,19 +240,23 @@ void LairView::Update(const Camera3D& camera, float realSeconds, float simSecond
         const Vec3 center = GetLairEdgeCenter(m_state, door.edge);
         float nearest = kDoorOpenDist;
         float wanted  = 0.0f;
-        for (const CrewMember& member : m_state.crew)
-        {
-            if (member.away || member.motion.level != kLevel)
-                continue;
-            const Vec3  d = member.motion.position - center;
+        const auto someoneAt = [&](const CharacterMotion& motion) {
+            if (motion.level != kLevel)
+                return;
+            const Vec3  d = motion.position - center;
             const float dist = std::sqrt(d.x * d.x + d.z * d.z);
             if (dist >= nearest)
-                continue;
+                return;
             nearest = dist;
             const float along = door.edge.side == EdgeSide::PosX ? d.x : d.z; // door-local z
             // An open door stays open the way it went, even once they've passed through.
             wanted = angle != 0.0f ? (angle > 0.0f ? kDoorOpen : -kDoorOpen) : (along < 0.0f ? -kDoorOpen : kDoorOpen);
-        }
+        };
+        for (const CrewMember& member : m_state.crew)
+            if (!member.away)
+                someoneAt(member.motion);
+        for (const LawAgent& agent : m_state.law.agents)
+            someoneAt(agent.motion);
         const float step = kDoorSpeed * simSeconds;
         angle += std::clamp(wanted - angle, -step, step);
     }

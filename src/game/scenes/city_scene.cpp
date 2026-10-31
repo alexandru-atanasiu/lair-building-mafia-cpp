@@ -596,7 +596,9 @@ void CityScene::DrawJobPopup(const SceneFrame& frame, const UiRect& area, const 
     else
         snprintf(men, sizeof(men), "%d to %d", def.minCrew, def.maxCrew);
     const std::string reward = def.reward > 0 ? MoneyText(def.reward) : "None";
-    const std::string heat   = Signed((int)std::lround(def.heat));
+    std::string       heat   = Signed((int)std::lround(def.heat));
+    if (def.evidence != 0.0f)
+        heat += ", evidence " + Signed((int)std::lround(def.evidence));
     const std::string fail   = "Heat " + Signed((int)std::lround(def.failHeat)) + ", men at risk";
     const struct { const char* label; std::string value; Color color; } terms[] = {
         { "Investment", MoneyText(def.investment), def.investment > 0 ? kAmber : kGood },
@@ -721,6 +723,8 @@ void CityScene::DrawJobPopup(const SceneFrame& frame, const UiRect& area, const 
     goStyle.disabled = why != nullptr;
     goStyle.textSize = 18.0f;
     const float buttonW = 150.0f;
+    m_state.city.devPopupButtonX = (int)((x + w - 0.5f * buttonW) * ui.GetScale());
+    m_state.city.devPopupButtonY = (int)((y + 18.0f) * ui.GetScale());
     if (ui.Button({ x + w - buttonW, y, buttonW, 36.0f }, "Go", goStyle))
     {
         m_state.city.StartMission(m_state, marker.id, m_picked);
@@ -796,6 +800,8 @@ void CityScene::DrawHirePopup(Ui& ui, const UiRect& area, const CityMarker& mark
     hire.disabled = why != nullptr;
     hire.textSize = 18.0f;
     const float buttonW = 110.0f;
+    m_state.city.devPopupButtonX = (int)((x + w - 0.5f * buttonW) * ui.GetScale());
+    m_state.city.devPopupButtonY = (int)((y + 18.0f) * ui.GetScale());
     if (ui.Button({ x + w - buttonW, y, buttonW, 36.0f }, "Hire", hire))
     {
         m_state.city.HireCandidate(m_state, marker.id);
@@ -849,6 +855,8 @@ void CityScene::DrawResultCard(Ui& ui, const UiRect& area)
         moreStyle.color = kDim;
         ui.Label({ r.x + 14.0f, r.y + r.h - 32.0f }, more, moreStyle);
     }
+    m_state.city.devCardButtonX = (int)((r.x + r.w - 52.0f) * ui.GetScale());
+    m_state.city.devCardButtonY = (int)((r.y + r.h - 23.0f) * ui.GetScale());
     if (ui.Button({ r.x + r.w - 92.0f, r.y + r.h - 38.0f, 80.0f, 30.0f }, "OK"))
         results.erase(results.begin());
 }
@@ -857,6 +865,8 @@ void CityScene::Update(const SceneFrame& frame)
 {
     Ui&          ui   = frame.ui;
     const UiRect area = GetMapArea(ui);
+    m_state.city.devPopupButtonX = 0;
+    m_state.city.devCardButtonX  = 0;
 
     // The area leaves out the HUD and the crew panel; what else covers the map is known by its rects.
     const Vec2 mouse      = ui.GetMouse();

@@ -123,6 +123,10 @@ std::string ExecuteCityCommand(GameState& state, std::istringstream& in)
             return "err no such crew member";
         member->jobId = job;
     }
+    else if (word == "buttons")
+    {
+        out << " popup=" << city.devPopupButtonX << ":" << city.devPopupButtonY << " card=" << city.devCardButtonX << ":" << city.devCardButtonY;
+    }
     else if (word == "results")
     {
         out << " results=" << city.results.size();

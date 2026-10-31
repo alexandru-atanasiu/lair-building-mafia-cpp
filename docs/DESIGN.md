@@ -400,3 +400,20 @@ How the code answers the open questions, and where it simplifies the design abov
 - Recruit and bribes are permanent institutions on the map rather than markers; takeovers are started by clicking
   the racket. Campaigns have 4 steps (5 against the Vitales); a sit-down that fails can kill the boss.
 - Tier counts sworn families' rackets as yours.
+
+## As built: the law, in the C++ vertical slice (2026-10-31)
+
+This section overrides *Heat*, *Raids* and *Busts and moving house* above for the current game. Numbers are at the top of
+`src/game/sim/law_sim.h`; `CLAUDE.md` says how it works.
+
+- **Heat bands bring visits.** Quiet: nobody. Noticed: one investigator about every 30 game hours. Hot: one about every 16. Scorching: up to three, about every 10.
+- **Evidence** is a number from 0 to 100, on the HUD with its raid mark, added only when an investigator leaves and reports. Crates count 0.5, 1 or 3 by kind, a
+  quarter of that for those that fit on Storage shelves; a gun rack 6, a workbench 2; 1 per $1,000 outside the vault, up to 10; 0.5 per man loafing. A clean report
+  takes 3 off. It fades by 0.25 an hour below heat 40, and a Bribe takes 12 off.
+- **A raid** comes at heat 60 and evidence 60 together, with six game hours' warning (no lookouts or captain needed: a Tip-off is a possible later feature).
+  There is no search result and no clean-up command: every raid is what the design calls a bust.
+- **Moving house** keeps the layout and loses all crates, half the built objects at random, 30% of loose money and 15% of what's in the vault. Men in the building are
+  arrested at 50% for 24 hours. Nothing is carried out, and no choice of new front is offered: the same map is the new premises. Heat and evidence go to 0.
+- **The third raid** ends the game, with a summary and a new game. There's no indictment at heat 100.
+- **Contraband** went from heat 9 to 18 a shipment, and each crate not on a shelf adds 0.1 heat an hour, so that high-value goods carry real risk.
+- **Not built:** rival families and assaults, inspectors as a separate system, resist switch, clean-up, lookouts, loyalty, wages.

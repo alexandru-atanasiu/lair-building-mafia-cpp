@@ -2,6 +2,10 @@
 
 SimStep Simulation::Advance(float realSeconds)
 {
+    // Nothing moves behind a screen of the law's, whatever the clock's buttons say.
+    if (m_state.law.screen != LawScreen::None)
+        return {};
+
     const SimStep step = m_state.clock.Advance(realSeconds);
     if (step.simSeconds <= 0.0f)
         return step;
