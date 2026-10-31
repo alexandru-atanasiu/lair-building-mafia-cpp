@@ -14,23 +14,23 @@ namespace
 
     const ShipmentKind kShipmentKinds[] = {
         // name          lower          dev            crates cost  hours heat  sale per crate
-        { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  2,    2.0f, 240 },
-        { "Booze",      "booze",      "booze",         8,    2400,  2,    4.0f, 480 },
-        { "Contraband", "contraband", "contraband",    6,    4000,  3,    9.0f, 1150 },
+        { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  2,    1.0f, 350 },
+        { "Booze",      "booze",      "booze",         8,    2400,  2,    3.0f, 640 },
+        { "Contraband", "contraband", "contraband",    6,    4000,  3,    9.0f, 1500 },
     };
     constexpr int   kTruckCapacity     = 12;   // crates a Ship out can take at once
     constexpr int   kPickupHours       = 1;    // Ship out: until the truck turns up
-    constexpr int   kPaymentHours      = 2;    // from the truck leaving to the money coming in
+    constexpr int   kPaymentHours      = 1;    // from the truck leaving to the money coming in
     constexpr float kShipOutHeat       = 1.0f; // added when a loaded truck leaves
     constexpr int   kMaxCarriers       = 4;    // crew on a truck at once
-    constexpr float kHandlingSeconds   = 0.7f; // sim seconds to lift or put down a crate
-    constexpr float kCarrySpeed        = 2.8f; // metres per sim second with a crate; empty-handed is the usual run
+    constexpr float kHandlingSeconds   = 0.5f; // sim seconds to lift or put down a crate
+    constexpr float kCarrySpeed        = 3.2f; // metres per sim second with a crate; empty-handed is the usual run
     constexpr float kHireEverySeconds  = 0.5f;
 
     constexpr float kOpenSeconds       = 1.5f;
     constexpr float kClearDoorSeconds  = 5.0f; // most a truck waits for crew to get inside before shutting
-    constexpr float kRoadSpeed         = 15.0f;
-    constexpr float kReverseSpeed      = 6.0f;
+    constexpr float kRoadSpeed         = 22.0f;
+    constexpr float kReverseSpeed      = 7.0f;
     constexpr float kSpeedPerMetre     = 1.3f; // how quickly it gets up to speed and brakes, by distance
     constexpr float kCrawlSpeed        = 1.2f;
 
@@ -47,7 +47,7 @@ namespace
     constexpr float kArcRadius = kLaneX - kArcX;
     constexpr float kArcZ      = kDockZ + kArcRadius;
     constexpr float kPastGateZ = kArcZ + 12.0f;
-    constexpr float kOffMapZ   = 95.0f; // the truck comes from and goes to this far along the road
+    constexpr float kOffMapZ   = 70.0f; // the truck comes from and goes to this far along the road
 
     using Route = std::vector<Vec3>;
 
@@ -585,8 +585,8 @@ namespace
         state.AddHeat(kShipOutHeat);
 
         char text[120];
-        snprintf(text, sizeof(text), "The truck left with %d %s: %s due in %d hours.", payment.crates, PluralCrates(payment.crates),
-                 WarehouseMoneyText(value).c_str(), kPaymentHours);
+        snprintf(text, sizeof(text), "The truck left with %d %s: %s due in %d %s.", payment.crates, PluralCrates(payment.crates),
+                 WarehouseMoneyText(value).c_str(), kPaymentHours, kPaymentHours == 1 ? "hour" : "hours");
         state.PostEvent(GameEventKind::Info, text);
         sim.cargo.clear();
     }
@@ -679,7 +679,9 @@ bool CanShipOut(const GameState& state, const char** why)
 
 int ShipOutCrateCount(const GameState& state)
 {
-    const int aboard = (int)state.warehouse.cargo.size();
+    // What a truck is holding only counts when it's stuck: a working truck is still delivering it.
+    const WarehouseSim& sim = state.warehouse;
+    const int aboard = sim.hold == TruckHold::NoRoom ? (int)sim.cargo.size() : 0;
     return std::min(state.crates + aboard, kTruckCapacity);
 }
 
@@ -688,11 +690,14 @@ int64_t ShipOutValue(const GameState& state)
     const WarehouseSim& sim = state.warehouse;
     int     left  = kTruckCapacity;
     int64_t value = 0;
-    for (const uint8_t kind : sim.cargo)
+    if (sim.hold == TruckHold::NoRoom)
     {
-        if (left-- <= 0)
-            break;
-        value += GetShipmentKind(kind).salePerCrate;
+        for (const uint8_t kind : sim.cargo)
+        {
+            if (left-- <= 0)
+                break;
+            value += GetShipmentKind(kind).salePerCrate;
+        }
     }
     for (const StoredCrate& crate : sim.stored)
     {

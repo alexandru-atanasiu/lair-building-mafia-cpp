@@ -22,7 +22,7 @@ namespace
     // From the road side, looking in over the docked truck at the racks.
     constexpr float     kStartDistance = 36.0f;
     constexpr float     kStartYaw      = DegToRad(-28.0f);
-    constexpr TileCoord kStartFocus    = { WorldLevel::Ground, 25, 17 };
+    constexpr TileCoord kStartFocus    = { WorldLevel::Ground, 24, 17 };
 
     constexpr float kHalfPi = 0.5f * kPi;
 
@@ -35,6 +35,7 @@ namespace
     constexpr float kGateOpenAngle = DegToRad(105.0f);
     constexpr float kCargoRowSpacing = 0.95f;
     constexpr float kCargoColumnX    = 0.58f;
+    constexpr float kCargoScale      = 0.9f; // leaves gaps, so a load reads as separate crates
 
     // The big door, in the middle of the two door tiles' outer edge.
     constexpr float kDockFrameYaw = -kHalfPi; // the meshes' -Z (outward) points along +X
@@ -352,7 +353,7 @@ void WarehouseScene::DrawTruck(MeshRenderer::Scope& meshes) const
     {
         const float row = (float)(i / 2);
         const float x   = (i % 2) ? kCargoColumnX : -kCargoColumnX;
-        meshes.Draw(*m_crate, truck * Mat4::Translation({ x, kBedFloorY, kBedFrontZ - 0.55f - row * kCargoRowSpacing }), kCrateColors[sim.cargo[i] % std::size(kCrateColors)]);
+        meshes.Draw(*m_crate, truck * Mat4::TRS({ x, kBedFloorY, kBedFrontZ - 0.55f - row * kCargoRowSpacing }, Mat4::Identity(), { kCargoScale, 1.0f, kCargoScale }), kCrateColors[sim.cargo[i] % std::size(kCrateColors)]);
     }
 }
 

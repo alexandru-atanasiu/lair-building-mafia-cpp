@@ -53,10 +53,12 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | `wait <seconds>`, `frames <n>` | wait (real time, frames) before the next command |
 | `screenshot <path>` | PNG of the next finished frame. Use an absolute path (`dev_client.py` makes them absolute); the game's working directory is `__generated\data` |
 | `devui 0\|1`, `debugpad 0\|1` | hide / show ImGui, close / open the DebugPad |
-| `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crew1=Don Carlo:boss:under:19:24:idle ...` |
+| `order cigarettes\|booze\|contraband`, `shipout` | the warehouse panel's buttons |
+| `crates <n>`, `crewjob <crew id> <n>` | set the stored crates; set a crew member's `jobId` (non-zero makes them busy) |
+| `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crates=0 capacity=24 truck=gone hold=none cargo=0 carriers=Sal*,Tony paymentsdue=0 ... crew1=Don Carlo:boss:under:19:24:idle ...` (`*` = holding a crate) |
 | `quit` | close the game |
 
-Add a command in `DevDriver::Execute`. Ship has no driver: `py/capture_window.py` screenshots a running window from outside and posts clicks and keys to it (`run.bat ship -windowed`, then `python py\capture_window.py "wait 2" "shot a.png" "key tab" "shot b.png" close`).
+Add a command in `DevDriver::Execute`. Ship has no driver: `py/capture_window.py` screenshots a running window from outside and posts clicks and keys to it (`run.bat ship -windowed`, then `python py\capture_window.py "wait 2" "shot a.png" "key tab" "shot b.png" close`). With other copies of the game running, use `--pid <id>` and, for `dev_client.py`, your own `--pipe <name>`.
 
 ## Build configurations
 
@@ -147,6 +149,19 @@ Each system lives in its own files, so parallel work doesn't collide.
 - Skeletal: `assets/animated/<path>.blend` (one armature, meshes with an Armature modifier, actions) → `py/pack_skeletal.py` in Blender → `__generated\intermediate\<path>.skraw` → `__generated\tools\anim_cook.exe` (ozz offline: SkeletonBuilder, AnimationOptimizer, AnimationBuilder; each face's material base color becomes a vertex color, white without material) → `__generated\data\animated\<path>.skel`, `.<action>.anim`, `.skin`. The .skraw layout is documented in `pack_skeletal.py` and read by `tools/anim_cook/anim_cook.cpp`; `.skin` is defined by `include/render/skinned_mesh.h` (shared by tool and game).
 - Placeholder assets are made by script and committed. Meshes: `py/create_meshes.py` in Blender (`blender --background --factory-startup --python py/create_meshes.py [-- name ...]`) writes `assets/meshes/**/*.blend`; add a function of boxes and a `MESHES` entry. 2D: `python py/create_ui_assets.py` (Pillow) writes `assets/ui/`; add a function and an `ICONS` entry. The soldier: `py/create_soldier.py` in Blender builds `assets/animated/soldier.blend` (Mixamo rig; idle, run, die clips; near-white body and near-black joints) from the FBXs in `raw/`.
 - At runtime, asset paths are **relative to the working directory**, which is `__generated\data` (a shipped build puts exe and data in one folder). Load files with `ReadFileBytes` (`include/core/file.h`) and pass bytecode to `PipelineDesc{ ShaderBytecode vertexShader, pixelShader, ... }`. There is no runtime HLSL compilation in engine code (only ImGui's DX11 backend uses `d3dcompiler`).
+
+## The warehouse (ground level)
+
+The front: fixed floor plan, a truck, a buy-and-sell loop. Tuning numbers are at the top of `src/game/sim/warehouse_sim.cpp`, and adding a kind of shipment is one line in `kShipmentKinds` (plus a color in `kCrateColors`, `warehouse_scene.cpp`).
+
+- **Floor plan:** `src/game/world/warehouse_layout.*`, called from `MakeStartingWorld`: racks, stock, pallets, forklift, office, the big door, crate slots (`GetCrateSlot`). `TileKind::Fixture` is floor with something standing on it: drawn as floor, not walkable, and not picked by wandering. The player doesn't build here. The building's rectangle is in both `warehouse_layout.h` and `world_layout.cpp`: keep them equal.
+- **Sim:** `WarehouseSim` (`warehouse_sim.h`): `phase` (`TruckPhase`), `job` (Deliver / Collect), `hold` (NoCrew / NoRoom), `cargo`, `stored`, `carriers`, `payments`. Orders: `OrderShipment(state, kind)`, `OrderShipOut(state)`, with `CanOrderShipment` / `CanShipOut` saying why not. Capacity: `CrateCapacity` = rack slots (24) + `ExtraCrateCapacity(state)`.
+- **Crew:** carriers are free non-boss crew (`away == false && jobId == 0`), up to 4, with `jobId = 1000001`. Clear or overwrite a carrier's `jobId` (or set `away`) to take them off: the crate goes back where it came from, and the job carries on with whoever else is free. If no one's free the truck waits, says so in the panel and news, and carries on by itself when someone is.
+- **A full warehouse:** cargo that doesn't fit stays on the truck, which waits. It unloads the rest if capacity rises; or Ship out turns it round, taking what's aboard and crates from the racks to the buyer. So it can never deadlock.
+- **The big door** is two wall edges (`kDockDoorTiles`) that `WarehouseSim` removes while it's open, so a closed door really blocks walking; paths re-plan through the world's revision. The shutter is drawn by the scene over the wall segments.
+- **For `law_sim`:** read `state.crates` (count), `state.warehouse.stored` (`StoredCrate`: `position`, `tile`, `slot`, `kind`), `warehouse.cargo` and `warehouse.phase`. To confiscate, lower `state.crates`: the newest go first and `Tick` keeps `stored` in step, including a carrier who was on the way to one. A law character can walk the ground level normally: outside is Pavement, with the front door at (19, 10), and the big door is open only while a truck is docked.
+- **View:** `WarehouseScene` is fixed dressing built once (`BuildProps`) plus the truck, the door and the crates drawn from the sim. Near walls stay low and the others get `wall_upper`, chosen by the camera's direction every frame (`DrawTallWalls`, `kCutawayFacing`). The panel is `scenes/warehouse_panel.cpp`. Meshes: `py/create_warehouse_meshes.py` (writes `assets/meshes/warehouse/`, run like `create_meshes.py`). Icons: `py/create_warehouse_ui.py`.
+- **`ExtraCrateCapacity`** is a stub returning 0 in `lair_sim.cpp`. `lair-building` defines the real one (`lair_build.cpp`): delete the stub at merge. Crates beyond the racks go in 2 x 2 stacks on the overflow pallets in the warehouse (`kOverflowTiles`), however many there are, so raids can find them.
 
 ## Conventions
 - `__generated/` is build/cook output only; never put sources there.

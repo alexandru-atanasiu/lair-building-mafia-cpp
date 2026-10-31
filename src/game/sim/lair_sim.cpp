@@ -25,7 +25,7 @@ namespace
     }
 }
 
-// Stub until lair-building's storage objects are merged: replace with theirs.
+// Stub until lair-building's storage objects are merged: delete it then (theirs is in lair_build.cpp).
 int ExtraCrateCapacity(const GameState&)
 {
     return 0;

@@ -5,7 +5,8 @@ when it moves over the window). Prefer the dev driver (py/dev_client.py) in dbg 
     python py/capture_window.py "wait 2" "shot shots/a.png" "key tab" "click 400 300" "wait 1" "shot shots/b.png" close
 
 Commands: shot <png>, key <tab|space|1|2|3>, move <x> <y>, click <x> <y>, wait <seconds>, close.
-Coordinates are client pixels. --title picks the window by the start of its title.
+Coordinates are client pixels. --title picks the window by the start of its title, and --pid limits
+it to one process: use it when other copies of the game may be running.
 """
 
 import argparse
@@ -41,7 +42,7 @@ PW_CLIENTONLY, PW_RENDERFULLCONTENT = 1, 2
 KEYS = {"tab": 0x09, "space": 0x20, "1": 0x31, "2": 0x32, "3": 0x33}
 
 
-def find_window(title, timeout=60.0):
+def find_window(title, pid=0, timeout=60.0):
     found = []
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -49,7 +50,9 @@ def find_window(title, timeout=60.0):
         length = user32.GetWindowTextLengthW(hwnd)
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if buffer.value.startswith(title) and user32.IsWindowVisible(hwnd):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if buffer.value.startswith(title) and user32.IsWindowVisible(hwnd) and (not pid or owner.value == pid):
             found.append(hwnd)
         return True
 
@@ -96,9 +99,10 @@ def shot(hwnd, path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--title", default="Capo di Tutti Capi")
+    parser.add_argument("--pid", type=int, default=0)
     parser.add_argument("commands", nargs="+")
     args = parser.parse_args()
-    hwnd = find_window(args.title)
+    hwnd = find_window(args.title, args.pid)
 
     for command in args.commands:
         word, *rest = command.split()
