@@ -1,0 +1,6 @@
+__generated/
+*.blend1
+*.pyc
+__pycache__/
+*.user
+.vs/
