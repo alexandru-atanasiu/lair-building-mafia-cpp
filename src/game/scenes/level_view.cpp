@@ -91,7 +91,7 @@ void LevelView::Update(const SceneFrame& frame)
 
 void LevelView::DrawLevel(MeshRenderer::Scope& meshes) const
 {
-    m_services.worldView.Draw(meshes, m_services.state.world, m_level);
+    m_services.worldView.Draw(meshes, m_services.state.world, m_level, m_wallLooks);
 }
 
 void LevelView::DrawCrew(const SceneRenderers& renderers) const

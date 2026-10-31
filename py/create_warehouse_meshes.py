@@ -274,6 +274,11 @@ def stair_rail():
     box(0.0, 4.0, 0.5, 2.1, 0.05, 0.05)
 
 
+def stair_shaft_end():
+    """Closes the stairwell's far end below the floor, where the steps stop: same origin as stair_rail."""
+    box(0.0, 4.03, -4.0, TILE, 0.06, 4.0)
+
+
 # ---------------------------------------------------------------------------- outside
 
 
@@ -365,6 +370,7 @@ MESHES = {
     "dock_paint": dock_paint,
     "dock_bumpers": dock_bumpers,
     "stair_rail": stair_rail,
+    "stair_shaft_end": stair_shaft_end,
     "road": road,
     "road_marks": road_marks,
     "fence_panel": fence_panel,

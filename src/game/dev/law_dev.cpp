@@ -53,6 +53,16 @@ namespace
             if (outs > 1)
                 problems += " " + member.name + ":out-twice";
         }
+        // Nobody walks through a fixture: not the racks, and not the shelves hiding the back room.
+        const auto inFixture = [&](const std::string& name, const CharacterMotion& motion) {
+            if (state.world.GetTile(state.world.WorldToTile(motion.level, motion.position)).kind == TileKind::Fixture)
+                problems += " " + name + ":in-a-fixture";
+        };
+        for (const CrewMember& member : state.crew)
+            if (!member.away)
+                inFixture(member.name, member.motion);
+        for (const LawAgent& agent : state.law.agents)
+            inFixture(agent.name, agent.motion);
         if ((int)state.warehouse.stored.size() != state.crates)
             problems += " crates-out-of-step";
         return problems;

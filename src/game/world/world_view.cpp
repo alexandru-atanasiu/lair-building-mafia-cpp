@@ -36,7 +36,7 @@ Mat4 WorldView::TileTransform(const WorldGrid& world, const TileCoord& tile, flo
     return Mat4::Translation(world.TileCenter(tile)) * Mat4::RotationY(yaw);
 }
 
-void WorldView::Draw(MeshRenderer::Scope& scope, const WorldGrid& world, WorldLevel level) const
+void WorldView::Draw(MeshRenderer::Scope& scope, const WorldGrid& world, WorldLevel level, const WallLooks& wallLooks) const
 {
     const int width = world.GetWidth();
     const int depth = world.GetDepth();
@@ -62,11 +62,19 @@ void WorldView::Draw(MeshRenderer::Scope& scope, const WorldGrid& world, WorldLe
                 const EdgeKind edge = world.GetEdge(c, side);
                 if (edge == EdgeKind::None)
                     return;
-                const Mat4 transform = Mat4::Translation(world.TileCenter(c) + offset) * Mat4::RotationY(yaw);
+                const WallLook look = wallLooks ? wallLooks(c, side) : WallLook{};
+                const Mat4 place = Mat4::Translation(world.TileCenter(c) + offset) * Mat4::RotationY(yaw);
                 if (edge == EdgeKind::Wall)
-                    scope.Draw(*m_wall, transform, kWallColor);
-                else
-                    scope.Draw(*m_door, transform, kDoorColor);
+                {
+                    scope.Draw(*m_wall, place * Mat4::Scale({ 1.0f, look.height, 1.0f }), kWallColor);
+                    return;
+                }
+                // The door below, the wall closing it above: together, always the whole height.
+                const float doorHeight = look.height * (1.0f - look.doorFilled);
+                if (doorHeight > 0.0f)
+                    scope.Draw(*m_door, place * Mat4::Scale({ 1.0f, doorHeight, 1.0f }), look.disguised ? kWallColor : kDoorColor);
+                if (look.doorFilled > 0.0f)
+                    scope.Draw(*m_wall, place * Mat4::Translation({ 0.0f, doorHeight * kWallHeight, 0.0f }) * Mat4::Scale({ 1.0f, look.height * look.doorFilled, 1.0f }), kWallColor);
             };
             const float half = 0.5f * kTileSize;
             drawEdge(EdgeSide::PosX, { half, 0.0f, 0.0f }, 0.5f * kPi);

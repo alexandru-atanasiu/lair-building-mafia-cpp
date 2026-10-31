@@ -1,6 +1,7 @@
 #include "law_sim.h"
 
 #include "game_state.h"
+#include "../world/world_layout.h"
 
 #include <algorithm>
 #include <cctype>
@@ -25,11 +26,9 @@ namespace
     constexpr TileCoord kRoadTurn     = { WorldLevel::Ground, 36, 8 };
     constexpr TileCoord kFrontOutside = { WorldLevel::Ground, 19, 9 };
     constexpr TileCoord kFrontInside  = { WorldLevel::Ground, 19, 11 };
-    constexpr TileCoord kStairTop     = { WorldLevel::Ground, 20, 14 };
-    constexpr TileCoord kStairFoot    = { WorldLevel::Underground, 20, 14 + kStairSpanTiles };
 
     // What he walks past upstairs: the racks' aisle and the overflow pallets.
-    constexpr TileCoord kRackAisle     = { WorldLevel::Ground, 21, 21 };
+    constexpr TileCoord kRackAisle     = { WorldLevel::Ground, 19, 21 };
     constexpr TileCoord kOverflowAisle = { WorldLevel::Ground, 24, 13 };
     // Where the officers who stay upstairs end up.
     constexpr TileCoord kOfficerSpots[] = {
@@ -37,7 +36,7 @@ namespace
     };
 
     // The back way out, in a corner of the first basement.
-    constexpr TileCoord kBoltHole = { WorldLevel::Underground, 18, 21 };
+    constexpr TileCoord kBoltHole = { WorldLevel::Underground, kStairFoot.x - 2, kStairFoot.z + 4 };
 
     float RandomUnit(GameState& state)
     {

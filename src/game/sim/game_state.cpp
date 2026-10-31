@@ -18,11 +18,11 @@ namespace
     };
     const StartingCrew kStartingCrew[] = {
         // The boss is the only saturated color; the soldiers wear dull suits, none of them red.
-        { "Don Carlo", CrewRole::Boss,    { 0.95f, 0.08f, 0.06f, 1.0f }, { WorldLevel::Underground, 20, 20 } },
-        { "Sal",       CrewRole::Soldier, { 0.20f, 0.23f, 0.32f, 1.0f }, { WorldLevel::Underground, 19, 18 } },
-        { "Vinnie",    CrewRole::Soldier, { 0.34f, 0.27f, 0.20f, 1.0f }, { WorldLevel::Underground, 22, 19 } },
-        { "Paulie",    CrewRole::Soldier, { 0.46f, 0.46f, 0.48f, 1.0f }, { WorldLevel::Underground, 18, 20 } },
-        { "Tony",      CrewRole::Soldier, { 0.22f, 0.30f, 0.22f, 1.0f }, { WorldLevel::Underground, 21, 21 } },
+        { "Don Carlo", CrewRole::Boss,    { 0.95f, 0.08f, 0.06f, 1.0f }, { WorldLevel::Underground, 25, 27 } },
+        { "Sal",       CrewRole::Soldier, { 0.20f, 0.23f, 0.32f, 1.0f }, { WorldLevel::Underground, 24, 25 } },
+        { "Vinnie",    CrewRole::Soldier, { 0.34f, 0.27f, 0.20f, 1.0f }, { WorldLevel::Underground, 27, 26 } },
+        { "Paulie",    CrewRole::Soldier, { 0.46f, 0.46f, 0.48f, 1.0f }, { WorldLevel::Underground, 23, 27 } },
+        { "Tony",      CrewRole::Soldier, { 0.22f, 0.30f, 0.22f, 1.0f }, { WorldLevel::Underground, 26, 28 } },
         { "Frankie",   CrewRole::Soldier, { 0.18f, 0.32f, 0.36f, 1.0f }, { WorldLevel::Ground, 17, 14 } },
     };
 }

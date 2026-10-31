@@ -18,7 +18,7 @@ struct GameState;
 //   law report              the screen's text
 //   law autodismiss <0|1>   escape screens go away by themselves, for auto players
 //   law turbo <n>           n simulation steps per frame, for tuning
-//   law check               "ok" if no man is stuck or owned twice, otherwise what's wrong
+//   law check               "ok" if no man is stuck or owned twice and nobody's in a fixture, otherwise what's wrong
 //   law log                 reports and raids so far, for tuning
 std::string ExecuteLawCommand(GameState& state, std::istringstream& in);
 

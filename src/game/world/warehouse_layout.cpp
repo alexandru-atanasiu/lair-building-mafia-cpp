@@ -38,6 +38,11 @@ void LayOutWarehouse(WorldGrid& world)
         MarkFixture(world, { WorldLevel::Ground, rack.x, rack.z });
         MarkFixture(world, { WorldLevel::Ground, rack.x, rack.z + 1 });
     }
+    for (const WarehouseRack& rack : kHidingShelves)
+    {
+        MarkFixture(world, { WorldLevel::Ground, rack.x, rack.z });
+        MarkFixture(world, { WorldLevel::Ground, rack.x + 1, rack.z });
+    }
     for (const TileCoord& tile : kOverflowTiles)
         MarkFixture(world, tile);
     for (const TileCoord& tile : kGoodsTiles)
@@ -53,6 +58,12 @@ void LayOutWarehouse(WorldGrid& world)
     for (int x = kWarehouseX0; x <= kOfficeX1; ++x)
         world.SetEdge({ WorldLevel::Ground, x, kOfficeZ0 }, EdgeSide::NegZ, EdgeKind::Wall);
     world.SetEdge({ WorldLevel::Ground, kOfficeX1, kOfficeZ0 + 1 }, EdgeSide::PosX, EdgeKind::Door);
+
+    for (int x = kBackRoomX0; x <= kWarehouseX1; ++x)
+        world.SetEdge({ WorldLevel::Ground, x, kBackRoomZ0 }, EdgeSide::NegZ, EdgeKind::Wall);
+    for (int z = kBackRoomZ0; z <= kWarehouseZ1; ++z)
+        world.SetEdge({ WorldLevel::Ground, kBackRoomX0, z }, EdgeSide::NegX, EdgeKind::Wall);
+    world.SetEdge(kBackRoomDoor, EdgeSide::NegZ, EdgeKind::Door);
 }
 
 int GetRackSlotCount()
