@@ -138,7 +138,9 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
     const bool    pastRaidLine = evidence >= kRaidEvidence;
     ui.ProgressBar(evidenceBar, evidence / kEvidenceMax, pastRaidLine ? Color{ 0.85f, 0.25f, 0.18f, 1.0f } : Color{ 0.72f, 0.58f, 0.30f, 1.0f });
     const float raidLineX = evidenceBar.x + evidenceBar.w * kRaidEvidence / kEvidenceMax;
-    ui.Fill({ raidLineX - 1.0f, evidenceBar.y - 3.0f, 2.0f, evidenceBar.h + 6.0f }, { 1.0f, 0.95f, 0.85f, 1.0f });
+    // Notches above and below, so the label stays readable.
+    ui.Fill({ raidLineX - 1.0f, evidenceBar.y - 4.0f, 2.0f, 5.0f }, { 1.0f, 0.95f, 0.85f, 1.0f });
+    ui.Fill({ raidLineX - 1.0f, evidenceBar.y + evidenceBar.h - 1.0f, 2.0f, 5.0f }, { 1.0f, 0.95f, 0.85f, 1.0f });
     char evidenceText[32];
     snprintf(evidenceText, sizeof(evidenceText), "Evidence %d", (int)(evidence + 0.5f));
     ui.LabelIn(evidenceBar, evidenceText, heatStyle);

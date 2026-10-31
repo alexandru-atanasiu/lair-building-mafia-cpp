@@ -203,6 +203,11 @@ struct CitySim
     float screenScale = 1.0f;
     float screenOffsetX = 0.0f;
     float screenOffsetY = 0.0f;
+    // Where the open popup's main button and the result card's OK are: for the dev driver. 0 = none.
+    int devPopupButtonX = 0;
+    int devPopupButtonY = 0;
+    int devCardButtonX  = 0;
+    int devCardButtonY  = 0;
 
 private:
     void TickMarkers(GameState& state, const SimStep& step);

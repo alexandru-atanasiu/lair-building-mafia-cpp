@@ -52,7 +52,7 @@ constexpr float kCleanReportEvidence   = -3.0f; // he found nothing to speak of 
 constexpr float kCleanReportBelow      = 2.0f;
 
 // Crates that draw attention just by sitting there: heat per game hour, per crate not on a shelf.
-constexpr float kStoredHeatPerHour[3] = { 0.0f, 0.0f, 0.0f };
+constexpr float kStoredHeatPerHour[3] = { 0.0f, 0.0f, 0.1f };
 
 // The raid.
 constexpr float kRaidWarningHours  = 6.0f;  // from the warning to the police turning up: 30 real seconds at 1x

@@ -665,8 +665,12 @@ void LawSim::MoveHouse(GameState& state)
     // What the screen says.
     char line[256];
     report.lines.push_back("Don Carlo got out by the bolt-hole, and the family has moved to a new warehouse. The layout is the same: every dug tile, wall, door and room.");
-    snprintf(line, sizeof(line), "Money: lost %s of %s (%d%% of what was loose, %d%% of the %s safe in the vault).", WarehouseMoneyText(moneyLost).c_str(),
-             WarehouseMoneyText(before).c_str(), (int)(kRaidLooseMoneyLoss * 100.0f + 0.5f), (int)(kRaidVaultMoneyLoss * 100.0f + 0.5f), WarehouseMoneyText(safe).c_str());
+    if (safe > 0)
+        snprintf(line, sizeof(line), "Money: lost %s of %s (%d%% of what was loose, %d%% of the %s safe in the vault).", WarehouseMoneyText(moneyLost).c_str(),
+                 WarehouseMoneyText(before).c_str(), (int)(kRaidLooseMoneyLoss * 100.0f + 0.5f), (int)(kRaidVaultMoneyLoss * 100.0f + 0.5f), WarehouseMoneyText(safe).c_str());
+    else
+        snprintf(line, sizeof(line), "Money: lost %s of %s (%d%%). With a Vault it would have been less.", WarehouseMoneyText(moneyLost).c_str(), WarehouseMoneyText(before).c_str(),
+                 (int)(kRaidLooseMoneyLoss * 100.0f + 0.5f));
     report.lines.push_back(line);
     report.lines.push_back(cratesLost > 0 ? "Crates: all " + std::to_string(cratesLost) + " lost." : "Crates: none to lose.");
     if (objectsLost > 0)

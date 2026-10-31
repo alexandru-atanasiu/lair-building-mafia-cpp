@@ -16,7 +16,7 @@ namespace
         // name          lower          dev            crates cost  hours heat  sale per crate
         { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  1,    1.0f, 350 },
         { "Booze",      "booze",      "booze",         8,    2400,  1,    3.0f, 640 },
-        { "Contraband", "contraband", "contraband",    6,    4000,  3,    9.0f, 1500 },
+        { "Contraband", "contraband", "contraband",    6,    4000,  3,    18.0f, 1500 },
     };
     constexpr int   kTruckCapacity     = 12;   // crates a Ship out can take at once
     constexpr int   kPickupHours       = 1;    // Ship out: until the truck turns up
