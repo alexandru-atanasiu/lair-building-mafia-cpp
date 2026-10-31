@@ -95,6 +95,7 @@ Game::Game(IWindow& window, IRenderDevice& device, const LaunchOptions& options)
         return false;
     };
     hooks.getOrbitCamera = [this]() { return m_scenes[m_activeScene]->GetOrbitCamera(); };
+    hooks.getTileSurfaceHeight = [this](const TileCoord& tile) { return m_scenes[m_activeScene]->GetTileSurfaceHeight(tile); };
 #if defined(GAME_IMGUI_ENABLED)
     hooks.setDevUiVisible = [this](bool visible) { m_devUI.SetVisible(visible); };
     hooks.setDebugPadOpen = [this](bool open) { m_devUI.GetDebugPad().SetOpen(open); };

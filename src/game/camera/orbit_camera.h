@@ -7,7 +7,8 @@ class IWindow;
 
 // Top-down camera orbiting a focus point on a level's floor.
 // WASD / arrows pan relative to the view (Shift: faster), the mouse wheel zooms, Q/E turn
-// (yaw) and dragging with the right mouse button held turns (left/right) and tilts (up/down).
+// (yaw), dragging with the right mouse button held turns (left/right) and tilts (up/down), and
+// dragging with the middle button holds the ground under the cursor (pan).
 class OrbitCamera
 {
 public:
@@ -22,6 +23,8 @@ public:
     void SetBounds(Vec2 min, Vec2 max) { m_boundsMin = min; m_boundsMax = max; }
     // Height of the floor it looks at: the focus point and ScreenToGround stay on it.
     void SetGroundHeight(float y) { m_groundHeight = y; }
+    // The distance and angles Reset goes to, for a view that wants its own framing.
+    void SetDefaultView(float distance, float pitch, float yaw) { m_defaultDistance = distance; m_defaultPitch = pitch; m_defaultYaw = yaw; }
     // Looks at `focus` (x/z; y is the ground height) from the default distance and angle.
     void Reset(Vec3 focus);
 
@@ -45,6 +48,7 @@ public:
     bool WorldToScreen(Vec3 world, Vec2& screen) const;
 
     const Camera3D& GetCamera() const { return m_camera; }
+    Vec3            GetFocus() const { return m_focus; }
 
 #if defined(GAME_IMGUI_ENABLED)
     // Controls help and camera settings, for a DebugPad category.
@@ -61,6 +65,12 @@ private:
     float    m_distance = 26.0f;
     float    m_yaw      = 0.0f;
     float    m_pitch    = DegToRad(-55.0f);
+    float    m_defaultDistance = 26.0f;
+    float    m_defaultPitch    = DegToRad(-55.0f);
+    float    m_defaultYaw      = 0.0f;
+    bool     m_panning  = false;
+    int32_t  m_panX     = 0;
+    int32_t  m_panY     = 0;
     Vec2     m_boundsMin = { -1e6f, -1e6f };
     Vec2     m_boundsMax = { 1e6f, 1e6f };
 

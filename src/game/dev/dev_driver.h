@@ -2,6 +2,7 @@
 
 #if defined(GAME_DEV_TOOLS_ENABLED)
 
+#include "../world/world_grid.h"
 #include "game/launch_options.h"
 #include "../../platform/platform_dev.h"
 #include "platform/window.h"
@@ -26,6 +27,7 @@ struct DevDriverHooks
     std::function<const char*()>                  getView;
     std::function<bool(const std::string&)>       setView;
     std::function<OrbitCamera*()>                 getOrbitCamera;
+    std::function<float(const TileCoord&)>        getTileSurfaceHeight;
     std::function<void(bool)>                     setDevUiVisible; // empty without ImGui
     std::function<void(bool)>                     setDebugPadOpen; // empty without ImGui
 };

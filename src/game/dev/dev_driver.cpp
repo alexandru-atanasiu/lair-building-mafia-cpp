@@ -19,7 +19,7 @@ namespace
     {
         static const struct { const char* name; Key key; } kKeys[] = {
             { "left", Key::Left }, { "right", Key::Right }, { "up", Key::Up }, { "down", Key::Down },
-            { "w", Key::W }, { "a", Key::A }, { "s", Key::S }, { "d", Key::D }, { "q", Key::Q }, { "e", Key::E },
+            { "w", Key::W }, { "a", Key::A }, { "s", Key::S }, { "d", Key::D }, { "q", Key::Q }, { "e", Key::E }, { "r", Key::R },
             { "shift", Key::Shift }, { "control", Key::Control }, { "tab", Key::Tab }, { "space", Key::Space },
             { "escape", Key::Escape }, { "1", Key::Num1 }, { "2", Key::Num2 }, { "3", Key::Num3 },
         };
@@ -64,6 +64,31 @@ namespace
         if (begin == std::string::npos)
             return {};
         return s.substr(begin, s.find_last_not_of(" \t\r\n") - begin + 1);
+    }
+
+    std::string DescribeLair(const GameState& state)
+    {
+        std::ostringstream out;
+        int digs = 0, builds = 0, workers = 0;
+        for (const LairJob& job : state.lair.jobs)
+            ++(job.kind == LairJobKind::Dig ? digs : builds);
+        for (const CrewMember& member : state.crew)
+            workers += member.jobId >= kLairFirstJobId ? 1 : 0;
+        out << "digs=" << digs << " builds=" << builds << " workers=" << workers << " capacity=" << CrewCapacity(state)
+            << " crates=" << ExtraCrateCapacity(state) << " protected=" << ProtectedMoney(state);
+        for (const LairRoom& room : state.lair.rooms)
+        {
+            const LairRoomStatus status = GetLairRoomStatus(state, room);
+            out << " room" << room.id << "=" << GetLairRoomTypes()[(size_t)room.type].key << ":" << room.rect.x0 << ":" << room.rect.z0 << ":"
+                << room.rect.x1 << ":" << room.rect.z1 << ":" << (status.working ? "working" : "\"" + status.problem + "\"");
+        }
+        for (const LairDoor& door : state.lair.doors)
+            out << " door" << door.id << "=" << door.edge.tile.x << ":" << door.edge.tile.z << ":" << (door.edge.side == EdgeSide::PosX ? "x" : "z")
+                << ":" << (door.built ? "built" : "pending");
+        for (const LairObject& object : state.lair.objects)
+            out << " object" << object.id << "=" << GetLairObjectTypes()[(size_t)object.type].key << ":" << object.tile.x << ":" << object.tile.z << ":"
+                << object.rotation << ":" << (object.built ? "built" : "pending");
+        return out.str();
     }
 
     std::string DescribeState(Simulation& simulation, const char* view, IWindow& window)
@@ -239,6 +264,7 @@ void DevDriver::EndFrame()
 //   wander <0|1>                 idle crew wander, or stay put
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
+//   lair                         replies jobs, rooms and their status, doors, objects and what they add up to
 //   state                        replies "ok view=... money=... crew1=Don Carlo:boss:under:19:19:idle ..."
 //   quit
 bool DevDriver::Execute(const std::string& text, std::string& reply)
@@ -389,7 +415,8 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
         else
         {
             Vec2 screen;
-            if (!camera->WorldToScreen(state.world.TileCenter(tile), screen))
+            const Vec3 surface = state.world.TileCenter(tile) + Vec3{ 0.0f, m_hooks.getTileSurfaceHeight(tile), 0.0f };
+            if (!camera->WorldToScreen(surface, screen))
                 return fail("behind the camera");
             char position[64];
             snprintf(position, sizeof(position), "ok %d %d", (int)screen.x, (int)screen.y);
@@ -415,6 +442,10 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
         in >> open;
         if (m_hooks.setDebugPadOpen)
             m_hooks.setDebugPadOpen(open != 0);
+    }
+    else if (word == "lair")
+    {
+        reply = "ok " + DescribeLair(state);
     }
     else if (word == "state")
     {

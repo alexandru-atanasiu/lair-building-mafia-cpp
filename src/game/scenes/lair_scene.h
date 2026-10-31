@@ -1,14 +1,14 @@
 #pragma once
 
 #include "../scene.h"
+#include "lair_tools.h"
+#include "lair_view.h"
 #include "level_view.h"
 
 #include <memory>
 
-class Mesh;
-
-// The underground level: the lair. A stub for now: the grid, some crates and crew wandering
-// (lair_sim.cpp). Right click sends the first crew member to a tile, to try the pathing.
+// The underground level: the lair. The rules are in sim/lair_sim.h, the drawing and its cutaway in
+// lair_view.h, the build menu and the mouse in lair_tools.h.
 class LairScene final : public IScene
 {
 public:
@@ -19,16 +19,19 @@ public:
     Color       GetClearColor() const override { return { 0.02f, 0.02f, 0.025f, 1.0f }; }
     void        Update(const SceneFrame& frame) override;
     void        Draw(const SceneRenderers& renderers) const override;
+    void        OnDeactivate() override { m_tools.CancelDrag(); }
     OrbitCamera* GetOrbitCamera() override { return &m_view.GetCamera(); }
+    float       GetTileSurfaceHeight(const TileCoord& tile) const override { return m_lair.GetSurfaceHeight(tile); }
 
 #if defined(GAME_IMGUI_ENABLED)
     void RegisterCheats(DebugPad& pad) override;
 #endif
 
 private:
-    GameState&                  m_state;
-    LevelView                   m_view;
-    std::shared_ptr<const Mesh> m_crate;
+    LevelView                     m_view;
+    LairView                      m_lair;
+    LairTools                     m_tools;
+    std::unique_ptr<MeshRenderer> m_translucent; // marks, blueprints and ghosts
 #if defined(GAME_IMGUI_ENABLED)
     DebugPad* m_debugPad = nullptr;
 #endif

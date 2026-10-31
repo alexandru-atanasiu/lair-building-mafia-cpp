@@ -63,6 +63,7 @@ struct Tile
 {
     TileKind kind = TileKind::Earth;
     uint16_t room = 0; // 0 = none. Free for the lair rules: an index into their room list.
+    bool     solid = false; // something stands here (a bed, a shelf): not walkable
 };
 
 // A straight staircase: walked from the upper tile's center to the lower tile's center. The tiles
@@ -87,6 +88,7 @@ public:
     const Tile& GetTile(const TileCoord& c) const;
     void        SetTileKind(const TileCoord& c, TileKind kind);
     void        SetTileRoom(const TileCoord& c, uint16_t room);
+    void        SetTileSolid(const TileCoord& c, bool solid);
 
     // The edge on `side` of a tile; the neighbor across it sees the same edge. Edges on the grid's
     // border exist too. Out of bounds reads as None and writes are ignored.

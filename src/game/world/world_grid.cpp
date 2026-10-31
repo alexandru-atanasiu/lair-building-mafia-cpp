@@ -44,6 +44,14 @@ void WorldGrid::SetTileRoom(const TileCoord& c, uint16_t room)
         m_tiles[TileIndex(c)].room = room;
 }
 
+void WorldGrid::SetTileSolid(const TileCoord& c, bool solid)
+{
+    if (!InBounds(c))
+        return;
+    m_tiles[TileIndex(c)].solid = solid;
+    ++m_revision;
+}
+
 EdgeKind* WorldGrid::FindEdge(const TileCoord& c, EdgeSide side)
 {
     if (!InBounds(c))
@@ -97,8 +105,8 @@ bool WorldGrid::IsWalkable(const TileCoord& c) const
 {
     if (!InBounds(c))
         return false;
-    const TileKind kind = GetTile(c).kind;
-    return kind == TileKind::Floor || kind == TileKind::Pavement;
+    const Tile& tile = GetTile(c);
+    return !tile.solid && (tile.kind == TileKind::Floor || tile.kind == TileKind::Pavement);
 }
 
 bool WorldGrid::CanStep(const TileCoord& from, int dx, int dz) const

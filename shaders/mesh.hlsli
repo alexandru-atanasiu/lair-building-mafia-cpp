@@ -16,5 +16,5 @@ struct VSIn
 struct VSOut
 {
     float4 pos   : SV_Position;
-    float3 color : COLOR;       // lit in the vertex shader, interpolated (Gouraud)
+    float4 color : COLOR;       // lit in the vertex shader, interpolated (Gouraud); premultiplied alpha
 };

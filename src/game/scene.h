@@ -79,6 +79,9 @@ public:
     // The scene's 3D camera, if it has one (dev driver: tile positions on screen).
     virtual OrbitCamera* GetOrbitCamera() { return nullptr; }
 
+    // Height above its floor of what the mouse hits on this tile (dev driver: clicking on earth).
+    virtual float GetTileSurfaceHeight(const TileCoord&) const { return 0.0f; }
+
 #if defined(GAME_IMGUI_ENABLED)
     // Registers the scene's DebugPad categories (unregistered when the scene is destroyed).
     // `pad` must outlive the scene.

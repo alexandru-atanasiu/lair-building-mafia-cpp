@@ -16,8 +16,6 @@ namespace
     constexpr float kZoomPerNotch    = 1.15f; // distance factor per mouse wheel notch
     constexpr float kMinDistance     = 8.0f;
     constexpr float kMaxDistance     = 90.0f;
-    constexpr float kDefaultDistance = 26.0f;
-    constexpr float kDefaultPitch    = DegToRad(-55.0f);
     constexpr float kMinPitch        = DegToRad(-89.0f); // steepest (almost straight down)
     constexpr float kMaxPitch        = DegToRad(-20.0f); // flattest
     constexpr float kKeyTurnSpeed    = DegToRad(90.0f);  // Q/E yaw, radians per second
@@ -42,9 +40,9 @@ OrbitCamera::~OrbitCamera()
 void OrbitCamera::Reset(Vec3 focus)
 {
     m_focus    = focus;
-    m_distance = kDefaultDistance;
-    m_yaw      = 0.0f;
-    m_pitch    = kDefaultPitch;
+    m_distance = m_defaultDistance;
+    m_yaw      = m_defaultYaw;
+    m_pitch    = m_defaultPitch;
     UpdateCamera();
 }
 
@@ -91,6 +89,28 @@ void OrbitCamera::Update(float deltaSeconds, bool keyboardAvailable, bool mouseA
             m_rightHeld = false;
             m_orbiting  = false;
         }
+    }
+
+    // Middle button: the ground under the cursor follows it.
+    if (m_window.WasMouseButtonPressed(MouseButton::Middle) && mouseAvailable)
+    {
+        m_panning = true;
+        m_panX    = m_window.GetMouseX();
+        m_panY    = m_window.GetMouseY();
+    }
+    if (m_panning)
+    {
+        Vec3 before, after;
+        if (ScreenToGround({ (float)m_panX, (float)m_panY }, before) &&
+            ScreenToGround({ (float)m_window.GetMouseX(), (float)m_window.GetMouseY() }, after))
+        {
+            m_focus.x += before.x - after.x;
+            m_focus.z += before.z - after.z;
+        }
+        m_panX = m_window.GetMouseX();
+        m_panY = m_window.GetMouseY();
+        if (!m_window.IsMouseButtonDown(MouseButton::Middle))
+            m_panning = false;
     }
 
     if (mouseAvailable || m_orbiting)

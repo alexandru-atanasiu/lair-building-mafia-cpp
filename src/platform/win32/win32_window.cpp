@@ -45,6 +45,7 @@ static bool KeyFromVirtualKey(WPARAM vk, Key& key)
     case 'D':      key = Key::D;     return true;
     case 'Q':      key = Key::Q;     return true;
     case 'E':      key = Key::E;     return true;
+    case 'R':      key = Key::R;     return true;
     case VK_SHIFT: key = Key::Shift; return true;
     case VK_CONTROL: key = Key::Control; return true;
     case VK_TAB:   key = Key::Tab;   return true;

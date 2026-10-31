@@ -11,6 +11,6 @@ VSOut main(VSIn i)
 
     VSOut o;
     o.pos   = mul(viewProj, float4(worldPos, 1.0));
-    o.color = ShadeVertex(worldPos, n, i.color.rgb, i.emissive);
+    o.color = float4(ShadeVertex(worldPos, n, i.color.rgb, i.emissive) * i.color.a, i.color.a);
     return o;
 }

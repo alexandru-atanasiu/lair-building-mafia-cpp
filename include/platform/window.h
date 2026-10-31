@@ -23,6 +23,7 @@ enum class Key
     D,
     Q,
     E,
+    R,
     Shift,
     Control,
     Tab,

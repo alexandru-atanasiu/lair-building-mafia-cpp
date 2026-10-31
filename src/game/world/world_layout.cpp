@@ -10,8 +10,7 @@ namespace
         int x0, z0, x1, z1; // inclusive
     };
     constexpr TileRect kWarehouse  = { 12, 10, 27, 23 };
-    constexpr TileRect kFirstRoom  = { 16, 17, 24, 22 };
-    constexpr TileRect kSecondRoom = { 15, 23, 25, 28 };
+    constexpr TileRect kBasement   = { 18, 17, 22, 21 }; // at the foot of the stairs; the rest is earth to dig
 
     void FillRect(WorldGrid& world, WorldLevel level, const TileRect& r, TileKind kind)
     {
@@ -44,11 +43,7 @@ WorldGrid MakeStartingWorld()
     WallAround(world, WorldLevel::Ground, kWarehouse);
     world.SetEdge({ WorldLevel::Ground, 19, kWarehouse.z0 }, EdgeSide::NegZ, EdgeKind::Door); // the front door
 
-    FillRect(world, WorldLevel::Underground, kFirstRoom, TileKind::Floor);
-    FillRect(world, WorldLevel::Underground, kSecondRoom, TileKind::Floor);
-    for (int x = kFirstRoom.x0; x <= kFirstRoom.x1; ++x) // the rest of that side faces earth
-        world.SetEdge({ WorldLevel::Underground, x, kSecondRoom.z0 }, EdgeSide::NegZ, EdgeKind::Wall);
-    world.SetEdge({ WorldLevel::Underground, 21, kSecondRoom.z0 }, EdgeSide::NegZ, EdgeKind::Door);
+    FillRect(world, WorldLevel::Underground, kBasement, TileKind::Floor);
 
     world.AddStair(kStairUpper, kStairLower);
     return world;
@@ -61,5 +56,5 @@ TileCoord GetWarehouseCenter()
 
 TileCoord GetBasementCenter()
 {
-    return { WorldLevel::Underground, 20, 23 };
+    return { WorldLevel::Underground, 20, 19 };
 }

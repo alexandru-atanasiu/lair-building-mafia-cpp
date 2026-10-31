@@ -29,6 +29,11 @@ public:
         DrawCrew(renderers);
     }
 
+    // The crew on this level, in their own skinned scope.
+    void DrawCrew(const SceneRenderers& renderers) const;
+
+    MeshLighting&       GetLighting() { return m_lighting; }
+    const MeshLighting& GetLighting() const { return m_lighting; }
     OrbitCamera&       GetCamera() { return m_camera; }
     const OrbitCamera& GetCamera() const { return m_camera; }
     WorldLevel         GetLevel() const { return m_level; }
@@ -38,7 +43,6 @@ public:
 
 private:
     void DrawLevel(MeshRenderer::Scope& meshes) const;
-    void DrawCrew(const SceneRenderers& renderers) const;
 
     const SceneServices m_services;
     WorldLevel          m_level;

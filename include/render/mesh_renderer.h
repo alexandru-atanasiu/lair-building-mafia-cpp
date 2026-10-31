@@ -23,6 +23,12 @@ struct MeshRendererStats
     uint32_t uploads   = 0; // instance buffer refills
 };
 
+enum class MeshRenderStyle
+{
+    Opaque,      // writes depth
+    Translucent, // blended by the color's alpha, depth tested but not written: draw it after the opaque world
+};
+
 // Draws static meshes with hardware instancing, flat colored and Gouraud shaded (lighting is
 // evaluated per vertex and interpolated) by one point light plus ambient.
 //
@@ -58,7 +64,7 @@ public:
     };
 
     // Loads the mesh shaders from the data folder (Fatal if they're missing).
-    explicit MeshRenderer(IRenderDevice& device);
+    explicit MeshRenderer(IRenderDevice& device, MeshRenderStyle style = MeshRenderStyle::Opaque);
     ~MeshRenderer();
 
     MeshRenderer(const MeshRenderer&)            = delete;

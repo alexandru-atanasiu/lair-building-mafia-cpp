@@ -43,7 +43,7 @@ void MeshRenderer::Scope::Draw(const Mesh& mesh, const Mat4& world, const Color&
     m_renderer.Add(mesh, world, color, emissive);
 }
 
-MeshRenderer::MeshRenderer(IRenderDevice& device)
+MeshRenderer::MeshRenderer(IRenderDevice& device, MeshRenderStyle style)
     : m_device(device)
     , m_instances(std::make_unique<InstanceBuckets<Mesh, Instance>>(device, kMinInstances, kMaxInstances))
 {
@@ -59,9 +59,9 @@ MeshRenderer::MeshRenderer(IRenderDevice& device)
     pd.vertexStride   = sizeof(MeshVertex);
     pd.instanceStride = sizeof(Instance);
     pd.topology       = PrimitiveTopology::TriangleList;
-    pd.blend          = BlendMode::Opaque;
+    pd.blend          = style == MeshRenderStyle::Translucent ? BlendMode::PremultipliedAlpha : BlendMode::Opaque;
     pd.cull           = CullMode::Back;
-    pd.depth          = DepthMode::ReadWrite;
+    pd.depth          = style == MeshRenderStyle::Translucent ? DepthMode::ReadOnly : DepthMode::ReadWrite;
 
     m_pipeline       = m_device.CreatePipeline(pd);
     m_frameConstants = m_device.CreateConstantBuffer(sizeof(LightingConstants));
