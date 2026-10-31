@@ -53,6 +53,7 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | `wait <seconds>`, `frames <n>` | wait (real time, frames) before the next command |
 | `screenshot <path>` | PNG of the next finished frame. Use an absolute path (`dev_client.py` makes them absolute); the game's working directory is `__generated\data` |
 | `devui 0\|1`, `debugpad 0\|1` | hide / show ImGui, close / open the DebugPad |
+| `city markers\|crew\|missions\|totals`, `city spawn <key>`, `city go <marker> <crew ids>`, `city hire <marker>`, `city job <crew id> <jobId>`, `city auto <0\|1\|2>` | the city map (`src/game/dev/city_dev.h`): `markers` gives each one's screen position to click; `auto` plays the map as a greedy (1) or careful (2) player, for tuning |
 | `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crew1=Don Carlo:boss:under:19:24:idle ...` |
 | `quit` | close the game |
 
@@ -147,6 +148,15 @@ Each system lives in its own files, so parallel work doesn't collide.
 - Skeletal: `assets/animated/<path>.blend` (one armature, meshes with an Armature modifier, actions) → `py/pack_skeletal.py` in Blender → `__generated\intermediate\<path>.skraw` → `__generated\tools\anim_cook.exe` (ozz offline: SkeletonBuilder, AnimationOptimizer, AnimationBuilder; each face's material base color becomes a vertex color, white without material) → `__generated\data\animated\<path>.skel`, `.<action>.anim`, `.skin`. The .skraw layout is documented in `pack_skeletal.py` and read by `tools/anim_cook/anim_cook.cpp`; `.skin` is defined by `include/render/skinned_mesh.h` (shared by tool and game).
 - Placeholder assets are made by script and committed. Meshes: `py/create_meshes.py` in Blender (`blender --background --factory-startup --python py/create_meshes.py [-- name ...]`) writes `assets/meshes/**/*.blend`; add a function of boxes and a `MESHES` entry. 2D: `python py/create_ui_assets.py` (Pillow) writes `assets/ui/`; add a function and an `ICONS` entry. The soldier: `py/create_soldier.py` in Blender builds `assets/animated/soldier.blend` (Mixamo rig; idle, run, die clips; near-white body and near-black joints) from the FBXs in `raw/`.
 - At runtime, asset paths are **relative to the working directory**, which is `__generated\data` (a shipped build puts exe and data in one folder). Load files with `ReadFileBytes` (`include/core/file.h`) and pass bytecode to `PipelineDesc{ ShaderBytecode vertexShader, pixelShader, ... }`. There is no runtime HLSL compilation in engine code (only ImGui's DX11 backend uses `d3dcompiler`).
+
+### The city map (`sim/city_sim.*`, `scenes/city_scene.*`)
+- **Art and data come from one script:** `python py/create_city_art.py` draws `assets/ui/city/` (map, marker icons, cars, portrait layers) and generates `src/game/sim/city_map_data.h` (road graph, sites, districts, in map pixels). Never edit the header. The map is a table of blocks (`CELLS`), and a new place for missions is a line in `SITES`. Rerun `cook.bat` after it.
+- **A mission is a row of `kMissions`** at the top of `city_sim.cpp`, with the other tuning numbers. A row names its `CityLocation`, and markers appear on free sites of that type. `MissionEffect::Hire` is the Recruit marker: nobody goes, the candidate joins.
+- **Going:** `StartMission` charges the investment and overwrites the man's `jobId` with `CitySim::kMissionJobId`. He walks to the warehouse's door (found in the world: a Door edge from Floor to Pavement) and turns `away` there. When all are out the car drives (`MissionPhase`), the job runs, and `Resolve` pays or punishes. Back home, `ComeBack` clears `jobId` and walks him in.
+- **Job systems:** a man can be taken off a job at any time by the player. Whoever gave the job must notice that `jobId` isn't theirs any more, and put the work back. Don't give work to men with `jobId != 0`.
+- **Status:** `city.GetCrewStatus(member)`; wounded and arrested men stay `away` until their `CrewOut` runs out.
+- **Heat:** only through `GameState::AddHeat`. Missions add it and `CitySim::TickHeat` lowers it once a game hour. `GetHeatChancePenalty` is the only effect it has here; what the law does about heat is `law_sim`'s. The HUD warns on any rise of more than 0.5.
+- **Bunks are a stub:** `BunkCapacity` in `city_sim.cpp` returns 10; at the merge it should return the lair's capacity.
 
 ## Conventions
 - `__generated/` is build/cook output only; never put sources there.

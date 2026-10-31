@@ -391,7 +391,9 @@ void CityScene::DrawCrewPanel(const SceneFrame& frame)
     Ui&          ui   = frame.ui;
     const float  top  = ui.GetContentTop();
     const UiRect rect = { ui.GetWidth() - kPanelWidth, top - 1.0f, kPanelWidth + 2.0f, ui.GetHeight() - top + 3.0f };
-    ui.Panel(rect);
+    Ui::PanelStyle solid; // the map's markers shouldn't show through
+    solid.fill = { 0.10f, 0.09f, 0.08f, 1.0f };
+    ui.Panel(rect, solid);
 
     const float x = rect.x + 12.0f;
     float       y = top + 8.0f;
