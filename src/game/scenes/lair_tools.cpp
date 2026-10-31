@@ -29,6 +29,7 @@ namespace
     const Color kDimText     = { 0.72f, 0.68f, 0.58f, 1.0f };
     const Color kLabelBack   = { 0.05f, 0.05f, 0.05f, 0.72f };
     constexpr float kPersonHeight  = 1.8f;
+    constexpr float kPersonHalfWidth = 0.3f; // of his height on screen
     constexpr float kCoveringAlpha = 0.18f;
 
     std::string Money(int amount)
@@ -172,15 +173,16 @@ void LairTools::BuildLabels(Ui& ui, const OrbitCamera& camera)
         {
             if (member.away || member.motion.level != kLevel)
                 continue;
-            for (const float y : { 0.0f, kPersonHeight })
-            {
-                Vec2 person;
-                if (camera.WorldToScreen(member.motion.position + Vec3{ 0.0f, y, 0.0f }, person))
-                {
-                    person = { person.x / scale, person.y / scale };
-                    coversSomeone = coversSomeone || (person.x >= back.x && person.x <= back.x + back.w && person.y >= back.y && person.y <= back.y + back.h);
-                }
-            }
+            Vec2 feet, head;
+            if (!camera.WorldToScreen(member.motion.position, feet) || !camera.WorldToScreen(member.motion.position + Vec3{ 0.0f, kPersonHeight, 0.0f }, head))
+                continue;
+            // The box he fills on screen, in UI pixels.
+            const float size   = Length(Vec3{ head.x - feet.x, head.y - feet.y, 0.0f }) / scale;
+            const float left   = std::min(feet.x, head.x) / scale - kPersonHalfWidth * size;
+            const float right  = std::max(feet.x, head.x) / scale + kPersonHalfWidth * size;
+            const float top    = std::min(feet.y, head.y) / scale;
+            const float lowest = std::max(feet.y, head.y) / scale;
+            coversSomeone = coversSomeone || (left < back.x + back.w && right > back.x && top < back.y + back.h && lowest > back.y);
         }
         const float alpha = coversSomeone ? kCoveringAlpha : 1.0f;
 
