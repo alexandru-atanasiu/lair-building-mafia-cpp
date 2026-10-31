@@ -738,8 +738,8 @@ bool OrderShipment(GameState& state, int kind)
     SetPhase(sim, TruckPhase::OnItsWay);
 
     char text[120];
-    snprintf(text, sizeof(text), "Ordered %d crates of %s for %s: the truck is due in %d hours.", shipment.crates, shipment.lowerName,
-             WarehouseMoneyText(shipment.cost).c_str(), shipment.hours);
+    snprintf(text, sizeof(text), "Ordered %d crates of %s for %s: the truck is due in %d %s.", shipment.crates, shipment.lowerName,
+             WarehouseMoneyText(shipment.cost).c_str(), shipment.hours, shipment.hours == 1 ? "hour" : "hours");
     state.PostEvent(GameEventKind::Info, text);
     return true;
 }

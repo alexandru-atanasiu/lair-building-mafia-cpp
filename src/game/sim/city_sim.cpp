@@ -79,7 +79,7 @@ namespace
           1, 1, 2.0f, 80, 1500, 0, -18.0f, 4.0f, 0.8f, 24.0f, 1 },
         { "recruit", "Recruit", "A man looking for work. Pay what it takes to bring him in.",
           "ui/city/markers/recruit.tex", kMarkerMan, CityLocation::Bar, MissionEffect::Hire, CrewStat::Nerve,
-          0, 0, 0.0f, 0, 1000, 0, 0.0f, 0.0f, 0.6f, 30.0f, 1 },
+          0, 0, 0.0f, 0, 1000, 0, 0.0f, 0.0f, 1.2f, 30.0f, 1 },
     };
 
     struct StartingStats

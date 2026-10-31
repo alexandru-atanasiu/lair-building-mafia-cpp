@@ -77,8 +77,8 @@ namespace
         if (ui.IsHovered({ x, y, width, kOrderRow - 4.0f }))
         {
             char tip[240];
-            snprintf(tip, sizeof(tip), "%d crates of %s: costs %s now.\nThe truck arrives in %d hours and brings %d heat.\nSold on, they pay %s (a profit of %s).%s%s",
-                     kind.crates, kind.lowerName, WarehouseMoneyText(kind.cost).c_str(), kind.hours, (int)kind.heat,
+            snprintf(tip, sizeof(tip), "%d crates of %s: costs %s now.\nThe truck arrives in %d %s and brings %d heat.\nSold on, they pay %s (a profit of %s).%s%s",
+                     kind.crates, kind.lowerName, WarehouseMoneyText(kind.cost).c_str(), kind.hours, kind.hours == 1 ? "hour" : "hours", (int)kind.heat,
                      WarehouseMoneyText(kind.salePerCrate * kind.crates).c_str(), WarehouseMoneyText(kind.salePerCrate * kind.crates - kind.cost).c_str(),
                      button.disabled ? "\n" : "", button.disabled ? why : "");
             ui.Tooltip(tip);

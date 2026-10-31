@@ -123,6 +123,10 @@ std::string ExecuteCityCommand(GameState& state, std::istringstream& in)
             return "err no such crew member";
         member->jobId = job;
     }
+    else if (word == "results")
+    {
+        out << " results=" << city.results.size();
+    }
     else if (word == "totals")
     {
         out << " started=" << city.missionsStarted << " won=" << city.missionsWon << " lost=" << city.missionsLost << " earned=" << city.moneyEarned

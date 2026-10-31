@@ -20,7 +20,7 @@
 namespace
 {
     // From the road side, looking in over the docked truck at the racks.
-    constexpr float     kStartDistance = 28.0f;
+    constexpr float     kStartDistance = 25.0f;
     constexpr float     kStartYaw      = DegToRad(-28.0f);
     constexpr TileCoord kStartFocus    = { WorldLevel::Ground, 24, 17 };
 
