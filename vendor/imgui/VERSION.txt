@@ -1,0 +1,6 @@
+Dear ImGui v1.92.9b
+https://github.com/ocornut/imgui
+commit f1cc2ae15e53a861a874c3034aae6798fde194ab
+
+Only the files needed to build are vendored here: core sources (no imgui_demo.cpp)
+plus the Win32 and DX11 backends. Files are unmodified.
