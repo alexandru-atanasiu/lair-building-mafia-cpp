@@ -16,11 +16,13 @@ public:
     explicit WorldView(MeshCache& meshes);
 
     // How to draw a wall or door, given the edge as a tile's `side`: `height` is the share of its
-    // height, and a `disguised` door is the color of the walls.
+    // height, a `disguised` door is the color of the walls, and `doorFilled` is the share of a door
+    // that's plain wall instead: at 1 there's no doorway at all.
     struct WallLook
     {
-        float height    = 1.0f;
-        bool  disguised = false;
+        float height     = 1.0f;
+        bool  disguised  = false;
+        float doorFilled = 0.0f;
     };
     using WallLooks = std::function<WallLook(const TileCoord& tile, EdgeSide side)>;
 

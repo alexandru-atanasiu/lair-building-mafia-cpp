@@ -41,6 +41,9 @@ private:
     void    BuildProps(const SceneServices& services);
     void    DrawTallWalls(MeshRenderer::Scope& meshes) const;
     WorldView::WallLook BackRoomWallLook(const TileCoord& tile, EdgeSide side) const;
+    bool    IsAnyoneInBackRoom() const;
+    void    UpdateBackRoom(float realSeconds);
+    void    DrawBackRoomRoof(MeshRenderer::Scope& translucent) const;
     void    DrawDockDoor(MeshRenderer::Scope& meshes) const;
     void    DrawTruck(MeshRenderer::Scope& meshes) const;
     void    DrawCrates(MeshRenderer::Scope& meshes) const;
@@ -48,11 +51,16 @@ private:
     GameState&        m_state;
     LevelView         m_view;
     std::vector<Prop> m_props;
+    std::unique_ptr<MeshRenderer> m_translucent; // the back room's roof
 
     MeshPtr m_crate;
+    MeshPtr m_roof;
     MeshPtr m_wallUpper, m_wallTrim;
     MeshPtr m_shutter;
     MeshPtr m_truckChassis, m_truckCab, m_truckGlass, m_truckBed, m_truckTarp, m_truckGate, m_truckWheels, m_truckLights;
+
+    float m_backRoomOpen = 0.0f; // 0: the walls stand whole; 1: cut down to see whoever's inside
+    float m_backRoomHold = 0.0f; // real seconds left before they start to rise
 
 #if defined(GAME_IMGUI_ENABLED)
     DebugPad* m_debugPad = nullptr;

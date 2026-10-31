@@ -55,6 +55,24 @@ namespace
     constexpr float kBackRoomSeeFloor = 0.5f * kTileSize;
     constexpr float kBackRoomWallMin  = 0.3f;
 
+    // Those walls only come down while someone's inside: in the room, the passage behind the shelves
+    // or on the stairs, above the lair's floor. They wait this long before rising again, so people
+    // coming and going don't make them bob.
+    constexpr int   kBackRoomPassageZ    = kBackRoomZ0 - 1;
+    constexpr float kBackRoomBelowY      = kUndergroundFloorY + 0.5f;
+    constexpr float kBackRoomHoldSeconds = 1.5f;
+    constexpr float kBackRoomSettled     = 0.002f; // this near shut, it's shut
+    constexpr float kBackRoomEaseRate    = 4.0f;   // per second: a whole room opening, gentler than the lair's small changes
+    constexpr float kBackRoomOuterRamp   = 0.1f;   // of the facing cosine
+
+    // The camera looks down over whole walls, so a roof shuts the room while they stand, and fades
+    // as they come down. It's floor_tile (py/create_meshes.py), stretched.
+    constexpr float kBackRoomRoofMeshSize = kTileSize - 0.04f;
+    constexpr float kBackRoomRoofOverlap  = 0.25f; // the walls' thickness: half of it on each side
+    constexpr float kBackRoomRoofAbove    = 0.02f;
+    constexpr float kBackRoomRoofGone     = 0.01f;
+    const Color     kBackRoomRoof         = { 0.46f, 0.42f, 0.36f, 1.0f };
+
     // The old crates on the shelves hiding the back room: three across, on the two levels and on top.
     constexpr float kShelfTowardRoom   = 0.3f;
     constexpr float kShelfCrateSpacing = 1.3f;
@@ -141,6 +159,7 @@ WarehouseScene::MeshPtr WarehouseScene::Load(const SceneServices& services, cons
 WarehouseScene::WarehouseScene(const SceneServices& services)
     : m_state(services.state)
     , m_view(services, WorldLevel::Ground, kStartFocus, MakeLighting(services.state.world))
+    , m_translucent(std::make_unique<MeshRenderer>(services.device, MeshRenderStyle::Translucent))
 {
     m_view.GetCamera().SetDistance(kStartDistance);
     m_view.GetCamera().SetYaw(kStartYaw);
@@ -148,6 +167,8 @@ WarehouseScene::WarehouseScene(const SceneServices& services)
 
     constexpr const char* kCrateMesh = "meshes/props/crate.mesh";
     m_crate        = LoadOrFatal(services.meshes.Load(kCrateMesh), kCrateMesh);
+    constexpr const char* kRoofMesh = "meshes/world/floor_tile.mesh";
+    m_roof         = LoadOrFatal(services.meshes.Load(kRoofMesh), kRoofMesh);
     m_wallUpper    = Load(services, "wall_upper");
     m_wallTrim     = Load(services, "wall_trim");
     m_shutter      = Load(services, "dock_shutter");
@@ -310,6 +331,7 @@ void WarehouseScene::Update(const SceneFrame& frame)
 {
     DrawWarehousePanel(frame.ui, m_state);
     m_view.Update(frame);
+    UpdateBackRoom(frame.realSeconds);
 }
 
 void WarehouseScene::DrawTallWalls(MeshRenderer::Scope& meshes) const
@@ -359,7 +381,8 @@ WorldView::WallLook WarehouseScene::BackRoomWallLook(const TileCoord& tile, Edge
     const bool there = inRoom(tile.x + stepX, tile.z + stepZ);
     if (here == there)
         return look;
-    look.disguised = true;
+    look.disguised  = true;
+    look.doorFilled = 1.0f - m_backRoomOpen;
 
     const Vec3  forward = m_view.GetCamera().GetCamera().GetForward();
     const float flat    = std::max(std::sqrt(forward.x * forward.x + forward.z * forward.z), 1e-4f);
@@ -371,9 +394,40 @@ WorldView::WallLook WarehouseScene::BackRoomWallLook(const TileCoord& tile, Edge
         return look; // an outer wall DrawTallWalls is raising: it needs all of what it stands on
 
     const float height = -forward.y / flat * kBackRoomSeeFloor / -facing;
-    look.height = std::clamp(height, kBackRoomWallMin, kWallHeight) / kWallHeight;
+    float       cut    = std::clamp(height, kBackRoomWallMin, kWallHeight) / kWallHeight;
+    if (here) // an outer wall comes down gradually, turning past where it stopped being raised
+        cut = 1.0f + (cut - 1.0f) * std::min(1.0f, (kCutawayFacing - facing) / kBackRoomOuterRamp);
+    look.height = 1.0f + (cut - 1.0f) * m_backRoomOpen;
     return look;
 }
+
+bool WarehouseScene::IsAnyoneInBackRoom() const
+{
+    const WorldGrid& world = m_state.world;
+    const auto inside = [&](const CharacterMotion& motion) {
+        if (motion.position.y < kBackRoomBelowY)
+            return false; // on the lair's floor, under the room
+        const TileCoord tile = world.WorldToTile(WorldLevel::Ground, motion.position);
+        return tile.x >= kBackRoomX0 && tile.x <= kWarehouseX1 && tile.z >= kBackRoomPassageZ && tile.z <= kWarehouseZ1;
+    };
+    for (const CrewMember& member : m_state.crew)
+        if (!member.away && inside(member.motion))
+            return true;
+    for (const LawAgent& agent : m_state.law.agents)
+        if (inside(agent.motion))
+            return true;
+    return false;
+}
+
+void WarehouseScene::UpdateBackRoom(float realSeconds)
+{
+    if (IsAnyoneInBackRoom())
+        m_backRoomHold = kBackRoomHoldSeconds;
+    else
+        m_backRoomHold = std::max(0.0f, m_backRoomHold - realSeconds);
+    m_backRoomOpen = EaseCutaway(m_backRoomOpen, m_backRoomHold > 0.0f ? 1.0f : 0.0f, kBackRoomEaseRate, realSeconds);
+    if (m_backRoomOpen < kBackRoomSettled)
+        m_backRoomOpen = 0.0f;}
 
 void WarehouseScene::DrawDockDoor(MeshRenderer::Scope& meshes) const
 {
@@ -435,6 +489,23 @@ void WarehouseScene::DrawCrates(MeshRenderer::Scope& meshes) const
     }
 }
 
+void WarehouseScene::DrawBackRoomRoof(MeshRenderer::Scope& translucent) const
+{
+    const float alpha = 1.0f - m_backRoomOpen;
+    if (alpha < kBackRoomRoofGone)
+        return;
+
+    // The room's tiles, out to the walls' outer faces; floor_tile's top is at its origin.
+    const WorldGrid& world = m_state.world;
+    const Vec3 first = world.TileCenter({ WorldLevel::Ground, kBackRoomX0, kBackRoomZ0 });
+    const Vec3 last  = world.TileCenter({ WorldLevel::Ground, kWarehouseX1, kWarehouseZ1 });
+    const float sizeX = last.x - first.x + kTileSize + kBackRoomRoofOverlap;
+    const float sizeZ = last.z - first.z + kTileSize + kBackRoomRoofOverlap;
+    const Mat4  at = Mat4::TRS({ 0.5f * (first.x + last.x), kWallHeight + kBackRoomRoofAbove, 0.5f * (first.z + last.z) }, Mat4::Identity(),
+                               { sizeX / kBackRoomRoofMeshSize, 1.0f, sizeZ / kBackRoomRoofMeshSize });
+    translucent.Draw(*m_roof, at, { kBackRoomRoof.r, kBackRoomRoof.g, kBackRoomRoof.b, alpha });
+}
+
 void WarehouseScene::Draw(const SceneRenderers& renderers) const
 {
     m_view.Draw(renderers, [this](MeshRenderer::Scope& meshes) {
@@ -445,6 +516,8 @@ void WarehouseScene::Draw(const SceneRenderers& renderers) const
         DrawTruck(meshes);
         DrawCrates(meshes);
     });
+    MeshRenderer::Scope translucent = m_translucent->Begin(m_view.GetCamera().GetCamera(), m_view.GetLighting());
+    DrawBackRoomRoof(translucent);
 }
 
 #if defined(GAME_IMGUI_ENABLED)

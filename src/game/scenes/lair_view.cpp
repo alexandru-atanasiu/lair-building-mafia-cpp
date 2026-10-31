@@ -1,5 +1,6 @@
 #include "lair_view.h"
 
+#include "level_view.h"
 #include "core/fatal.h"
 #include "render/camera_3d.h"
 #include "render/mesh.h"
@@ -53,11 +54,6 @@ namespace
     Color Lerp(const Color& a, const Color& b, float t)
     {
         return { a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t };
-    }
-
-    float Ease(float value, float target, float seconds)
-    {
-        return value + (target - value) * std::min(1.0f, kEaseRate * seconds);
     }
 
     // A steady scatter by tile, so the rock isn't a checkerboard.
@@ -220,11 +216,11 @@ void LairView::Update(const Camera3D& camera, float realSeconds, float simSecond
     }
 
     for (size_t i = 0; i < m_earthHeight.size(); ++i)
-        m_earthHeight[i] = Ease(m_earthHeight[i], m_earthTarget[i], realSeconds);
+        m_earthHeight[i] = EaseCutaway(m_earthHeight[i], m_earthTarget[i], kEaseRate, realSeconds);
     for (size_t i = 0; i < m_edgeXHeight.size(); ++i)
-        m_edgeXHeight[i] = Ease(m_edgeXHeight[i], m_edgeXTarget[i], realSeconds);
+        m_edgeXHeight[i] = EaseCutaway(m_edgeXHeight[i], m_edgeXTarget[i], kEaseRate, realSeconds);
     for (size_t i = 0; i < m_edgeZHeight.size(); ++i)
-        m_edgeZHeight[i] = Ease(m_edgeZHeight[i], m_edgeZTarget[i], realSeconds);
+        m_edgeZHeight[i] = EaseCutaway(m_edgeZHeight[i], m_edgeZTarget[i], kEaseRate, realSeconds);
 
     m_time += simSeconds;
 
