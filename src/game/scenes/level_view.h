@@ -2,9 +2,12 @@
 
 #include "../camera/orbit_camera.h"
 #include "../scene.h"
+#include "../world/world_view.h"
 #include "render/lighting.h"
 #include "render/mesh_renderer.h"
 #include "render/skinned_mesh_renderer.h"
+
+#include <utility>
 
 // What the two 3D scenes share: a camera over one level of the world, its lighting, the grid and
 // the crew standing on that level. Scene-specific meshes go in through `drawExtras`.
@@ -38,6 +41,9 @@ public:
     const OrbitCamera& GetCamera() const { return m_camera; }
     WorldLevel         GetLevel() const { return m_level; }
 
+    // Lets the scene change how some of the level's walls are drawn.
+    void SetWallLooks(WorldView::WallLooks wallLooks) { m_wallLooks = std::move(wallLooks); }
+
     // The walkable tile under the cursor, if any. Hit-tests the level's floor.
     bool TileUnderCursor(TileCoord& tile) const;
 
@@ -48,6 +54,7 @@ private:
 
     const SceneServices m_services;
     WorldLevel          m_level;
+    WorldView::WallLooks m_wallLooks;
     OrbitCamera         m_camera;
     MeshLighting        m_lighting;
 };

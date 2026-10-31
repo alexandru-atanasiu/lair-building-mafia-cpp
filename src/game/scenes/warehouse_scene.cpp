@@ -50,6 +50,16 @@ namespace
     // A wall stays low when its outside faces the camera at more than this (cos of the angle).
     constexpr float kCutawayFacing = -0.65f;
 
+    // The back room's walls are only as tall as keeps the floor this far behind them in view, so
+    // nobody inside vanishes: the middle of the first tile. Never lower than kBackRoomWallMin.
+    constexpr float kBackRoomSeeFloor = 0.5f * kTileSize;
+    constexpr float kBackRoomWallMin  = 0.3f;
+
+    // The old crates on the shelves hiding the back room: three across, on the two levels and on top.
+    constexpr float kShelfTowardRoom   = 0.3f;
+    constexpr float kShelfCrateSpacing = 1.3f;
+    constexpr float kShelfCrateLevels[] = { 0.02f, 1.10f, 2.20f };
+
     const Color kCrateColors[] = {
         { 0.62f, 0.47f, 0.27f, 1.0f }, // cigarettes: pale pine
         { 0.40f, 0.26f, 0.15f, 1.0f }, // booze: dark oak
@@ -79,7 +89,8 @@ namespace
     const Color kDark         = { 0.10f, 0.10f, 0.11f, 1.0f };
     const Color kDesk         = { 0.36f, 0.25f, 0.16f, 1.0f };
     const Color kCabinet      = { 0.34f, 0.37f, 0.36f, 1.0f };
-    const Color kRail         = { 0.72f, 0.56f, 0.14f, 1.0f };
+    const Color kRail         = { 0.30f, 0.31f, 0.32f, 1.0f };
+    const Color kOldCrates    = { 0.47f, 0.42f, 0.34f, 1.0f }; // weathered: not one of the shipments' colors
     const Color kGround       = { 0.20f, 0.23f, 0.16f, 1.0f };
     const Color kWeeds        = { 0.24f, 0.27f, 0.17f, 1.0f };
     const Color kAsphalt      = { 0.13f, 0.13f, 0.14f, 1.0f };
@@ -133,6 +144,7 @@ WarehouseScene::WarehouseScene(const SceneServices& services)
 {
     m_view.GetCamera().SetDistance(kStartDistance);
     m_view.GetCamera().SetYaw(kStartYaw);
+    m_view.SetWallLooks([this](const TileCoord& tile, EdgeSide side) { return BackRoomWallLook(tile, side); });
 
     constexpr const char* kCrateMesh = "meshes/props/crate.mesh";
     m_crate        = LoadOrFatal(services.meshes.Load(kCrateMesh), kCrateMesh);
@@ -171,7 +183,7 @@ void WarehouseScene::BuildProps(const SceneServices& services)
         add("weeds_patch", Mat4::TRS({ 0.5f * (x0 + x1), -0.13f, 0.5f * (z0 + z1) }, Mat4::Identity(), { 0.5f * (x1 - x0), 1.0f, 0.5f * (z1 - z0) }), kGround);
     };
     // Everywhere under the tiles, around the hole of the stairwell.
-    const Vec3 well0 = world.TileCenter({ WorldLevel::Ground, 20, 15 }) - Vec3{ 1.0f, 0.0f, 1.0f };
+    const Vec3 well0 = world.TileCenter({ WorldLevel::Ground, kStairTop.x, kStairTop.z + 1 }) - Vec3{ 1.0f, 0.0f, 1.0f };
     const Vec3 well1 = well0 + Vec3{ 2.0f, 0.0f, 4.0f };
     land(-400.0f, -400.0f, well0.x, 400.0f);
     land(well1.x, -400.0f, 400.0f, 400.0f);
@@ -244,6 +256,21 @@ void WarehouseScene::BuildProps(const SceneServices& services)
         add("rack_beams", Mat4::Translation(at), kRackBeams);
         add("rack_cartons", Mat4::Translation(at), kCarton);
     }
+    int shelfCrate = 0;
+    for (const WarehouseRack& rack : kHidingShelves)
+    {
+        const Vec3 at = world.TileCenter({ WorldLevel::Ground, rack.x, rack.z }) + Vec3{ 0.5f * kTileSize, 0.0f, kShelfTowardRoom };
+        add("rack_frame", Mat4::Translation(at), kRackFrame);
+        add("rack_beams", Mat4::Translation(at), kRackBeams);
+        for (const float y : kShelfCrateLevels)
+        {
+            for (int across = -1; across <= 1; ++across)
+            {
+                const float yaw = 0.05f * (float)((shelfCrate++ * 7) % 5 - 2);
+                m_props.push_back({ m_crate, Place(at + Vec3{ (float)across * kShelfCrateSpacing, y, 0.0f }, yaw), kOldCrates, 0.0f });
+            }
+        }
+    }
     for (const WarehouseRack& rack : kStockRacksAlongZ)
     {
         const Vec3 at = world.TileCenter({ WorldLevel::Ground, rack.x, rack.z }) + Vec3{ -0.35f, 0.0f, 0.5f * kTileSize };
@@ -272,7 +299,11 @@ void WarehouseScene::BuildProps(const SceneServices& services)
     add("office_cabinet", Place(world.TileCenter(kCabinetTile) + Vec3{ 0.0f, 0.0f, 0.55f }), kCabinet);
 
     for (const Stair& stair : world.GetStairs())
-        add("stair_rail", Place(world.TileCenter(stair.upper) + Vec3{ 0.0f, 0.0f, 0.5f * kTileSize }), kRail);
+    {
+        const Vec3 wellStart = world.TileCenter(stair.upper) + Vec3{ 0.0f, 0.0f, 0.5f * kTileSize };
+        add("stair_rail", Place(wellStart), kRail);
+        add("stair_shaft_end", Place(wellStart), kDark);
+    }
 }
 
 void WarehouseScene::Update(const SceneFrame& frame)
@@ -314,6 +345,34 @@ void WarehouseScene::DrawTallWalls(MeshRenderer::Scope& meshes) const
         raise({ WorldLevel::Ground, kWarehouseX0, z }, EdgeSide::NegX, { -1.0f, 0.0f, 0.0f }, kHalfPi);
         raise({ WorldLevel::Ground, kWarehouseX1, z }, EdgeSide::PosX, { 1.0f, 0.0f, 0.0f }, kHalfPi);
     }
+}
+
+WorldView::WallLook WarehouseScene::BackRoomWallLook(const TileCoord& tile, EdgeSide side) const
+{
+    WorldView::WallLook look;
+    const auto inRoom = [](int x, int z) { return x >= kBackRoomX0 && x <= kWarehouseX1 && z >= kBackRoomZ0 && z <= kWarehouseZ1; };
+
+    // The world view draws each edge as a tile's PosX or PosZ side (the grid's border aside).
+    const int  stepX = side == EdgeSide::PosX ? 1 : 0;
+    const int  stepZ = side == EdgeSide::PosZ ? 1 : 0;
+    const bool here  = inRoom(tile.x, tile.z);
+    const bool there = inRoom(tile.x + stepX, tile.z + stepZ);
+    if (here == there)
+        return look;
+    look.disguised = true;
+
+    const Vec3  forward = m_view.GetCamera().GetCamera().GetForward();
+    const float flat    = std::max(std::sqrt(forward.x * forward.x + forward.z * forward.z), 1e-4f);
+    const float sign    = here ? 1.0f : -1.0f;
+    const float facing  = sign * ((float)stepX * forward.x + (float)stepZ * forward.z) / flat; // the wall's outward, on the camera's look
+    if (facing >= 0.0f)
+        return look; // the camera's looking at its inside
+    if (here && facing >= kCutawayFacing)
+        return look; // an outer wall DrawTallWalls is raising: it needs all of what it stands on
+
+    const float height = -forward.y / flat * kBackRoomSeeFloor / -facing;
+    look.height = std::clamp(height, kBackRoomWallMin, kWallHeight) / kWallHeight;
+    return look;
 }
 
 void WarehouseScene::DrawDockDoor(MeshRenderer::Scope& meshes) const

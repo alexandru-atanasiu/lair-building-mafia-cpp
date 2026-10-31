@@ -4,15 +4,12 @@
 
 namespace
 {
-    constexpr TileCoord kStairUpper = { WorldLevel::Ground, 20, 14 };
-    constexpr TileCoord kStairLower = { WorldLevel::Underground, 20, 14 + kStairSpanTiles };
-
     struct TileRect
     {
         int x0, z0, x1, z1; // inclusive
     };
     constexpr TileRect kWarehouse  = { 12, 10, 27, 23 };
-    constexpr TileRect kBasement   = { 18, 17, 22, 21 }; // at the foot of the stairs; the rest is earth to dig
+    constexpr TileRect kBasement   = { kStairFoot.x - 2, kStairFoot.z, kStairFoot.x + 2, kStairFoot.z + 4 }; // the rest is earth to dig
 
     void FillRect(WorldGrid& world, WorldLevel level, const TileRect& r, TileKind kind)
     {
@@ -47,7 +44,7 @@ WorldGrid MakeStartingWorld()
 
     FillRect(world, WorldLevel::Underground, kBasement, TileKind::Floor);
 
-    world.AddStair(kStairUpper, kStairLower);
+    world.AddStair(kStairTop, kStairFoot);
     LayOutWarehouse(world);
     return world;
 }
@@ -59,5 +56,5 @@ TileCoord GetWarehouseCenter()
 
 TileCoord GetBasementCenter()
 {
-    return { WorldLevel::Underground, 20, 19 };
+    return { WorldLevel::Underground, kStairFoot.x, kStairFoot.z + 2 };
 }

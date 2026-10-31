@@ -40,6 +40,7 @@ private:
     MeshPtr Load(const SceneServices& services, const char* path) const;
     void    BuildProps(const SceneServices& services);
     void    DrawTallWalls(MeshRenderer::Scope& meshes) const;
+    WorldView::WallLook BackRoomWallLook(const TileCoord& tile, EdgeSide side) const;
     void    DrawDockDoor(MeshRenderer::Scope& meshes) const;
     void    DrawTruck(MeshRenderer::Scope& meshes) const;
     void    DrawCrates(MeshRenderer::Scope& meshes) const;
