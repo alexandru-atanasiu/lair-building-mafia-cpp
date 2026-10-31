@@ -12,6 +12,7 @@ namespace
     constexpr float kCarefulHeatLimit = 30.0f; // the careful player stops working above this
     constexpr float kCarefulBribeHeat = 25.0f; // and buys it down from here
     constexpr int   kCratesWorthShipping = 6;  // the smuggler sends a load off from here
+    constexpr float kMixedHeatLimit = 50.0f;   // the mixed player stops missions here, and keeps smuggling
 
     const char* PhaseName(MissionPhase phase)
     {
@@ -188,6 +189,15 @@ void RunCityAutoPlayer(GameState& state, int mode)
                 continue;
         }
         const std::vector<uint32_t> men = city.DefaultPick(state, def);
+        if (mode == 4)
+        {
+            // Mixed: leaves men at work alone, as a person would, and stops when it's too hot.
+            bool working = state.heat >= kMixedHeatLimit;
+            for (uint32_t id : men)
+                working = working || state.FindCrew(id)->jobId != 0;
+            if (working)
+                continue;
+        }
         if (!city.WhyNotGo(state, def, men))
             city.StartMission(state, marker.id, men);
     }

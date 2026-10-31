@@ -12,7 +12,7 @@ namespace
     // The default view: near enough to read what a man is doing, and turned so that two walls of
     // a room face you. Everything can still be zoomed and turned.
     constexpr float kDefaultFov      = DegToRad(32.0f);
-    constexpr float kDefaultDistance = 19.0f;
+    constexpr float kDefaultDistance = 23.0f;
     constexpr float kDefaultPitch    = DegToRad(-58.0f);
     constexpr float kDefaultYaw      = DegToRad(-28.0f);
 
