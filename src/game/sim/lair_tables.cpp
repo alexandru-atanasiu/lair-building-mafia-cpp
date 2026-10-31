@@ -1,4 +1,5 @@
 #include "lair_sim.h"
+#include "law_sim.h"
 
 // The lair's content. A new room type or object is one entry here, plus its meshes in
 // py/create_meshes.py and its icon in py/create_ui_assets.py: no code knows these names. Effects
@@ -73,11 +74,11 @@ namespace
         { .key = "gun_rack", .name = "Gun rack", .description = "Tommy guns, oiled and counted.", .icon = "ui/icons/obj_gun_rack.tex", .room = "armoury",
           .cost = 350, .buildSeconds = 5.0f, .height = 1.9f,
           .parts = { { "meshes/objects/gun_rack_frame.mesh", kWood }, { "meshes/objects/gun_rack_guns.mesh", kGunmetal } },
-          .useSeconds = 6.0f },
+          .useSeconds = 6.0f, .evidence = kGunRackEvidence },
         { .key = "workbench", .name = "Workbench", .description = "Vice and tools. Two tiles long.", .icon = "ui/icons/obj_workbench.tex", .room = "armoury",
           .width = 2, .cost = 250, .buildSeconds = 5.0f, .height = 1.2f,
           .parts = { { "meshes/objects/workbench_body.mesh", kWood }, { "meshes/objects/workbench_tools.mesh", kGunmetal } },
-          .useSeconds = 10.0f },
+          .useSeconds = 10.0f, .evidence = kWorkbenchEvidence },
 
         { .key = "boss_desk", .name = "Boss's desk", .description = "Where the family's business gets done. Two tiles long.", .icon = "ui/icons/obj_boss_desk.tex", .room = "office",
           .width = 2, .cost = 600, .buildSeconds = 7.0f, .height = 1.1f,

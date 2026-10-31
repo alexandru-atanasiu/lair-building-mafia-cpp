@@ -51,6 +51,8 @@ struct LairObjectType
     float useSeconds = 0.0f;        // 0 = crew don't use it
     bool  seat = false;             // not solid: the user stands on its own tile
     bool  bossSeat = false;         // the boss's place: he stays there, nobody else uses it
+    // What an investigator who sees it reports (law_sim.h).
+    float evidence = 0.0f;
 };
 
 struct LairRequirement
@@ -261,6 +263,9 @@ LairCheck CheckDeleteLairObject(const GameState& state, const LairObject& object
 LairCheck DeleteLairObject(GameState& state, int objectId);
 LairCheck CheckDeleteLairRoom(const GameState& state, const LairRoom& room);
 LairCheck DeleteLairRoom(GameState& state, uint16_t roomId);
+
+// A raid took it: gone, with no refund.
+void RemoveLairObjectForRaid(GameState& state, int objectId);
 
 // Right click: cancels whatever job stands on this tile, if any, and refunds it.
 bool CancelLairJobAt(GameState& state, const TileCoord& tile);

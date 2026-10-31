@@ -74,9 +74,9 @@ namespace
         { "robbery", "Robbery", "The big one: in the front door with the guns out. Takes more than one man.",
           "ui/city/markers/robbery.tex", kMarkerMoney, CityLocation::Bank, MissionEffect::Job, CrewStat::Nerve,
           2, 3, 8.0f, 50, 800, 6000, 14.0f, 18.0f, 0.7f, 18.0f, 1 },
-        { "bribe", "Bribe", "An envelope changes hands, and a file goes missing. Costs plenty, and lowers heat.",
+        { "bribe", "Bribe", "An envelope changes hands, and a file goes missing. Costs plenty, and lowers heat and evidence.",
           "ui/city/markers/bribe.tex", kMarkerFix, CityLocation::Office, MissionEffect::Job, CrewStat::Brains,
-          1, 1, 2.0f, 80, 1500, 0, -18.0f, 4.0f, 0.8f, 24.0f, 1 },
+          1, 1, 2.0f, 80, 1500, 0, -18.0f, 4.0f, 0.8f, 24.0f, 1, -12.0f },
         { "recruit", "Recruit", "A man looking for work. Pay what it takes to bring him in.",
           "ui/city/markers/recruit.tex", kMarkerMan, CityLocation::Bar, MissionEffect::Hire, CrewStat::Nerve,
           0, 0, 0.0f, 0, 1000, 0, 0.0f, 0.0f, 1.2f, 30.0f, 1 },
@@ -527,6 +527,7 @@ void CitySim::Resolve(GameState& state, ActiveMission& mission)
         state.money += def.reward;
         moneyEarned += def.reward;
         state.AddHeat(def.heat);
+        state.law.AddEvidence(def.evidence);
         if (def.heat > 0.0f)
             heatFromMissions += def.heat;
 
@@ -534,7 +535,7 @@ void CitySim::Resolve(GameState& state, ActiveMission& mission)
         if (def.reward > 0)
             snprintf(line, sizeof(line), "%s pulled it off at %s. +%s, heat +%d.", men.c_str(), site.name, Money(def.reward).c_str(), (int)(def.heat + 0.5f));
         else
-            snprintf(line, sizeof(line), "%s squared it at %s. Heat %d.", men.c_str(), site.name, (int)(def.heat - 0.5f));
+            snprintf(line, sizeof(line), "%s squared it at %s. Heat %d, evidence %d.", men.c_str(), site.name, (int)(def.heat - 0.5f), (int)(def.evidence - 0.5f));
         result.text = line;
     }
     else

@@ -620,6 +620,7 @@ namespace
             if (payment.minutesLeft > 0.0f)
                 continue;
             state.money += payment.amount;
+            sim.moneyEarned += payment.amount;
             char text[120];
             snprintf(text, sizeof(text), "%s came in for %d %s.", WarehouseMoneyText(payment.amount).c_str(), payment.crates, PluralCrates(payment.crates));
             state.PostEvent(GameEventKind::Good, text);
@@ -764,6 +765,26 @@ bool OrderShipOut(GameState& state)
     SetPhase(sim, TruckPhase::OnItsWay);
     state.PostEvent(GameEventKind::Info, "Sent for the truck to ship crates out.");
     return true;
+}
+
+int AbandonWarehouse(GameState& state)
+{
+    WarehouseSim& sim = state.warehouse;
+    for (CrateCarrier& carrier : sim.carriers)
+        ReleaseCarrier(state, carrier, false); // a crate in his hands goes back, to be counted
+    sim.carriers.clear();
+
+    const bool  docked = sim.phase != TruckPhase::Gone && sim.phase != TruckPhase::DrivingOff;
+    const int   lost   = (int)sim.stored.size() + (docked ? (int)sim.cargo.size() : 0);
+    sim.stored.clear();
+    sim.cargo.clear();
+    state.crates = 0;
+
+    SetDoorEdges(state, false);
+    sim.openAmount = 0.0f;
+    sim.hold       = TruckHold::None;
+    SetPhase(sim, TruckPhase::Gone);
+    return lost;
 }
 
 std::string DescribeTruck(const GameState& state)

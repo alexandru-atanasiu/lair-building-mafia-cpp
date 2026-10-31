@@ -4,6 +4,7 @@
 #include "core/log.h"
 #include "game/launch_options.h"
 #include "hud/hud.h"
+#include "hud/law_screen.h"
 #include "platform/window.h"
 #include "scene.h"
 #include "scenes/city_scene.h"
@@ -56,12 +57,7 @@ Game::Game(IWindow& window, IRenderDevice& device, const LaunchOptions& options)
     , m_worldView(std::make_unique<WorldView>(m_meshCache))
     , m_characters(std::make_unique<CharacterView>(device))
 {
-    // In ViewId order. The lair starts active.
-    const SceneServices services = { window, device, m_meshCache, m_simulation->GetState(), *m_worldView, *m_characters };
-    m_scenes.push_back(std::make_unique<WarehouseScene>(services));
-    m_scenes.push_back(std::make_unique<LairScene>(services));
-    m_scenes.push_back(std::make_unique<CityScene>(services));
-    m_activeScene = (size_t)ViewId::Lair;
+    BuildScenes();
 
 #if defined(GAME_IMGUI_ENABLED)
     DebugPad& pad = m_devUI.GetDebugPad();
@@ -120,6 +116,31 @@ Game::~Game()
 #endif
 }
 
+void Game::BuildScenes()
+{
+    // In ViewId order. The lair starts active.
+    const SceneServices services = { m_window, m_device, m_meshCache, m_simulation->GetState(), *m_worldView, *m_characters };
+    m_scenes.clear();
+    m_scenes.push_back(std::make_unique<WarehouseScene>(services));
+    m_scenes.push_back(std::make_unique<LairScene>(services));
+    m_scenes.push_back(std::make_unique<CityScene>(services));
+    m_activeScene = (size_t)ViewId::Lair;
+}
+
+void Game::StartNewGame()
+{
+    m_scenes[m_activeScene]->OnDeactivate();
+    m_simulation->NewGame();
+    BuildScenes();
+    m_hud = std::make_unique<Hud>();
+    m_characters = std::make_unique<CharacterView>(m_device);
+#if defined(GAME_IMGUI_ENABLED)
+    for (const std::unique_ptr<IScene>& scene : m_scenes)
+        scene->RegisterCheats(m_devUI.GetDebugPad());
+#endif
+    LOG_INFO("New game");
+}
+
 void Game::SetActiveView(size_t index)
 {
     if (index == m_activeScene || index >= m_scenes.size())
@@ -150,6 +171,9 @@ int Game::Run()
 
 void Game::Frame()
 {
+    if (m_simulation->GetState().law.newGameWanted)
+        StartNewGame();
+
     const auto  now          = std::chrono::steady_clock::now();
     const float deltaSeconds = std::min(std::chrono::duration<float>(now - m_lastFrameTime).count(), kMaxDeltaSeconds);
     m_lastFrameTime = now;
@@ -180,6 +204,22 @@ void Game::Frame()
 #endif
 
     const SimStep step = m_simulation->Advance(deltaSeconds);
+#if defined(GAME_DEV_TOOLS_ENABLED)
+    for (int i = 1; i < m_simulation->GetState().law.devTurbo; ++i)
+        m_simulation->Advance(deltaSeconds);
+#endif
+
+    // Whoever the law is finished with.
+    {
+        std::vector<uint32_t>& departed = m_simulation->GetState().law.departedIds;
+        for (uint32_t id : departed)
+            m_characters->Forget(id);
+        departed.clear();
+    }
+
+    // Behind one of the law's screens, the keys do nothing and the mouse is the screen's.
+    if (m_simulation->GetState().law.screen != LawScreen::None)
+        keyboardAvailable = false;
 
     m_ui->BeginFrame(mouseAvailable);
     const ViewId wanted = m_hud->Update(*m_ui, m_simulation->GetState(), m_window, keyboardAvailable, (ViewId)m_activeScene,
@@ -189,6 +229,7 @@ void Game::Frame()
     IScene& scene = *m_scenes[m_activeScene];
     scene.Update({ deltaSeconds, step, keyboardAvailable, mouseAvailable, *m_ui });
     m_hud->DrawNews(*m_ui, m_simulation->GetState(), deltaSeconds);
+    DrawLawScreen(*m_ui, m_simulation->GetState());
 
     const Color clear         = scene.GetClearColor();
     const float clearColor[4] = { clear.r, clear.g, clear.b, clear.a };

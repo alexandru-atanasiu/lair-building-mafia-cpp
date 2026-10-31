@@ -4,6 +4,7 @@
 
 #include "../camera/orbit_camera.h"
 #include "city_dev.h"
+#include "law_dev.h"
 #include "../sim/simulation.h"
 #include "core/log.h"
 #include "render/render_device.h"
@@ -182,6 +183,9 @@ void DevDriver::BeginFrame()
 
     PollPipe();
 
+    if (LawSim& law = m_simulation.GetState().law; law.devAutoDismiss && law.screen == LawScreen::Escaped)
+        law.DismissScreen(m_simulation.GetState());
+
     // Second half of a tap, one frame later: the game saw the press with the button down.
     if (m_releaseKey)
     {
@@ -268,6 +272,7 @@ void DevDriver::EndFrame()
 //   crates <n>                   set the stored crates
 //   crewjob <crew id> <n>        set a crew member's jobId: non-zero makes them busy
 //   city <what> ...              missions and markers: see city_dev.h
+//   law <what> ...               evidence, investigators, raids: see law_dev.h
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
 //   lair                         replies jobs, rooms and their status, doors, objects and what they add up to
@@ -432,6 +437,10 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
     else if (word == "city")
     {
         reply = ExecuteCityCommand(state, in);
+    }
+    else if (word == "law")
+    {
+        reply = ExecuteLawCommand(state, in);
     }
     else if (word == "wander")
     {

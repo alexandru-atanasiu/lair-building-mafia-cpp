@@ -54,6 +54,7 @@ struct MissionDef
     float         weight;     // how often its markers appear, relative to the others
     float         markerHours; // how long a marker waits before it expires
     int           maxLive;    // markers of it at once
+    float         evidence = 0.0f; // added to the law's evidence on success (negative: lowers it)
 };
 std::span<const MissionDef> GetMissionDefs();
 

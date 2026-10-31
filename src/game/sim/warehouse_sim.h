@@ -121,6 +121,8 @@ struct WarehouseSim
     std::vector<CrateCarrier>   carriers;
     std::vector<PendingPayment> payments;
 
+    int64_t moneyEarned = 0; // everything crates have paid, for the last screen
+
     float hireTimer = 0.0f;
     bool  doorEdgesOpen = false;
 };
@@ -140,6 +142,10 @@ int     ShipOutCrateCount(const GameState& state);
 int64_t ShipOutValue(const GameState& state);
 bool    OrderShipment(GameState& state, int kind); // pays and sends for the truck
 bool    OrderShipOut(GameState& state);            // sends for the truck, or turns a stuck one round
+
+// The family has left in a hurry: the truck is gone, and crates with it, racks and truck both.
+// Money already due still comes in. Returns the crates lost.
+int AbandonWarehouse(GameState& state);
 
 // "$1,200"
 std::string WarehouseMoneyText(int64_t money);

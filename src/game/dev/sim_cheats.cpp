@@ -24,6 +24,19 @@ void RegisterSimCheats(DebugPad& pad, Simulation& simulation)
             state.money = money;
         ImGui::SliderFloat("Heat", &state.heat, 0.0f, 100.0f, "%.0f");
 
+        ImGui::SliderFloat("Evidence", &state.law.evidence, 0.0f, kEvidenceMax, "%.0f");
+        if (ImGui::Button("Investigator"))
+            state.law.SpawnInvestigators(state, 1);
+        ImGui::SameLine();
+        if (ImGui::Button("Force raid"))
+            state.law.StartRaid(state, false);
+        ImGui::SameLine();
+        if (ImGui::Button("Force third raid") && state.law.phase == RaidPhase::None)
+        {
+            state.law.raidsSurvived = kLawEscapes;
+            state.law.StartRaid(state, false);
+        }
+
         ImGui::Text("Day %d  %02d:%02d", state.clock.GetDay(), state.clock.GetHour(), state.clock.GetMinute());
         bool paused = state.clock.IsPaused();
         if (ImGui::Checkbox("Paused", &paused))

@@ -18,6 +18,9 @@ public:
     void DrawNews(Ui& ui, const GameState& state, float realSeconds);
 
 private:
+    void DrawLawBanner(Ui& ui, const GameState& state) const;
+
+    float    m_pulse        = 0.0f;
     float    m_barBottom    = 0.0f;
     uint64_t m_shownEvent   = 0; // id of the news line on show
     float    m_shownSeconds = 0.0f;

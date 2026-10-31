@@ -37,6 +37,8 @@ public:
 private:
     void Frame();
     void SetActiveView(size_t index);
+    void BuildScenes();
+    void StartNewGame(); // the bust screen asked: fresh state, fresh views
 
     IWindow&       m_window;
     IRenderDevice& m_device;
