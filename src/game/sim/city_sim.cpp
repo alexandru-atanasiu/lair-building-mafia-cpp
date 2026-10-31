@@ -39,7 +39,7 @@ namespace
     constexpr float kHeatDecayPerHourMenOut  = 0.2f;
 
     // Driving: a game hour is 5 real seconds at 1x, and the map is 2048 pixels across.
-    constexpr float kDrivePixelsPerHour = 900.0f;
+    constexpr float kDrivePixelsPerHour = 600.0f;
 
     // Markers
     constexpr float kMarkerEveryHours    = 2.5f; // one more on average, with +-50% jitter
@@ -65,19 +65,19 @@ namespace
         //  min/max men, hours, chance%, investment, reward, heat, failHeat, weight, markerHours, maxLive
         { "shakedown", "Shakedown", "Lean on the owner until protection starts to sound like a good idea.",
           "ui/city/markers/shakedown.tex", kMarkerBold, CityLocation::Shop, MissionEffect::Job, CrewStat::Muscle,
-          1, 1, 3.0f, 70, 0, 700, 3.0f, 5.0f, 3.0f, 14.0f, 3 },
+          1, 1, 3.0f, 70, 0, 500, 3.0f, 5.0f, 3.0f, 14.0f, 3 },
         { "burglary", "Burglary", "In through a back window while the family is at the shore.",
           "ui/city/markers/burglary.tex", kMarkerQuiet, CityLocation::Residence, MissionEffect::Job, CrewStat::Brains,
-          1, 1, 5.0f, 65, 100, 1500, 5.0f, 8.0f, 2.0f, 16.0f, 2 },
+          1, 1, 5.0f, 65, 100, 1200, 5.0f, 8.0f, 2.0f, 16.0f, 2 },
         { "smuggling", "Smuggling run", "A boat, a crew who ask no questions, cash up front. Slow and safe.",
           "ui/city/markers/smuggling.tex", kMarkerWater, CityLocation::Dock, MissionEffect::Job, CrewStat::Nerve,
-          1, 2, 8.0f, 75, 500, 2400, 3.0f, 6.0f, 2.0f, 20.0f, 2 },
+          1, 2, 8.0f, 75, 500, 2000, 3.0f, 6.0f, 2.0f, 20.0f, 2 },
         { "hijack", "Hijack a truck", "A driver takes a long look at a gun, and the load goes missing.",
           "ui/city/markers/hijack.tex", kMarkerBold, CityLocation::TruckRoute, MissionEffect::Job, CrewStat::Muscle,
-          1, 2, 6.0f, 60, 200, 2800, 7.0f, 10.0f, 1.5f, 12.0f, 2 },
+          1, 2, 6.0f, 60, 200, 2200, 7.0f, 10.0f, 1.5f, 12.0f, 2 },
         { "robbery", "Robbery", "The big one: in the front door with the guns out. Takes more than one man.",
           "ui/city/markers/robbery.tex", kMarkerMoney, CityLocation::Bank, MissionEffect::Job, CrewStat::Nerve,
-          2, 3, 8.0f, 50, 800, 7500, 14.0f, 18.0f, 0.7f, 18.0f, 1 },
+          2, 3, 8.0f, 50, 800, 6000, 14.0f, 18.0f, 0.7f, 18.0f, 1 },
         { "bribe", "Bribe", "An envelope changes hands, and a file goes missing. Costs plenty, and lowers heat.",
           "ui/city/markers/bribe.tex", kMarkerFix, CityLocation::Office, MissionEffect::Job, CrewStat::Brains,
           1, 1, 2.0f, 80, 1500, 0, -18.0f, 4.0f, 0.8f, 24.0f, 1 },

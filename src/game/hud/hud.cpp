@@ -99,7 +99,7 @@ ViewId Hud::Update(Ui& ui, GameState& state, const IWindow& window, bool keyboar
 
     char heatText[32];
     snprintf(heatText, sizeof(heatText), "%d  %s", (int)(state.heat + 0.5f), GetHeatBandName(state.heat));
-    const UiRect heatBar = { x, topInset + 13.0f, 150.0f, 20.0f };
+    const UiRect heatBar = { x, topInset + 13.0f, 134.0f, 20.0f };
     ui.ProgressBar(heatBar, state.heat / 100.0f, HeatColor(state.heat));
     for (float band : { 0.25f, 0.5f, 0.75f }) // where missions get harder
         ui.Fill({ heatBar.x + heatBar.w * band, heatBar.y + 1.0f, 1.0f, heatBar.h - 2.0f }, { 0.0f, 0.0f, 0.0f, 0.55f });
@@ -198,5 +198,6 @@ void Hud::DrawNews(Ui& ui, const GameState& state, float realSeconds)
     news.color = event.kind == GameEventKind::Good ? Color{ 0.65f, 0.90f, 0.50f, 1.0f }
                : event.kind == GameEventKind::Bad  ? Color{ 0.95f, 0.45f, 0.35f, 1.0f }
                                                    : Color{ 0.93f, 0.90f, 0.82f, 1.0f };
+    ui.Fill({ 8.0f, m_barBottom + 4.0f, ui.MeasureText(event.text) + 12.0f, ui.GetLineHeight() + 4.0f }, { 0.05f, 0.05f, 0.05f, 0.7f });
     ui.Label({ 14.0f, m_barBottom + 6.0f }, event.text, news);
 }

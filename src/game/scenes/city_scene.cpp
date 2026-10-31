@@ -19,12 +19,13 @@ namespace
     constexpr float kRosterHeader  = 40.0f;
     constexpr float kMaxPhysicalZoom = 2.0f; // screen pixels per map pixel: the art gets soft past this
     constexpr float kStartZoom     = 0.85f;
+    constexpr float kStartMapWidth = 1500.0f; // map pixels across a small window at the start
     constexpr float kWheelZoomStep = 1.14f;
     constexpr float kPanSpeed      = 800.0f; // logical pixels a second
     constexpr float kDragThreshold = 4.0f;   // logical pixels before a press is a drag, not a click
 
     constexpr float kMarkerSize   = 40.0f;
-    constexpr float kCarPlate     = 30.0f;
+    constexpr float kCarPlate     = 36.0f;
     constexpr float kExpiringSoon = 0.25f; // fraction of its life left: the marker's bar turns orange
 
     constexpr float kPopupWidth   = 480.0f;
@@ -152,7 +153,7 @@ void CityScene::UpdateCamera(const SceneFrame& frame, const UiRect& area, bool m
     const float minZoom = std::max(area.w / kCityMapWidth, area.h / kCityMapHeight);
     const float maxZoom = std::max(minZoom, kMaxPhysicalZoom / ui.GetScale());
     if (m_zoom <= 0.0f)
-        m_zoom = kStartZoom;
+        m_zoom = std::min(kStartZoom, area.w / kStartMapWidth); // a small window starts further out
 
     const Vec2 mouse = ui.GetMouse();
     if (mouseOnMap)
@@ -355,10 +356,11 @@ void CityScene::DrawMissions(Ui& ui, const UiRect& area, bool mouseOnMap)
         if (onTheRoad)
         {
             const CrewMember* lead  = mission.crew.empty() ? nullptr : m_state.FindCrew(mission.crew.front());
-            const Color       tint  = lead ? lead->tint : Color{ 0.4f, 0.4f, 0.4f, 1.0f };
+            const Color       suit  = lead ? lead->tint : Color{ 0.4f, 0.4f, 0.4f, 1.0f };
+            const Color       tint  = { suit.r + (1.0f - suit.r) * 0.25f, suit.g + (1.0f - suit.g) * 0.25f, suit.b + (1.0f - suit.b) * 0.25f, 1.0f }; // the glass stays darker
             const UiRect      plate = { carAt.x - 0.5f * kCarPlate, carAt.y - 0.5f * kCarPlate, kCarPlate, kCarPlate };
             ImageInArea(ui, area, plate, ui.Texture("ui/city/plate.tex"), {});
-            ImageInArea(ui, area, { plate.x + 3.0f, plate.y + 3.0f, kCarPlate - 6.0f, kCarPlate - 6.0f }, ui.Texture(CarTexture(direction)), tint);
+            ImageInArea(ui, area, { plate.x + 1.0f, plate.y + 1.0f, kCarPlate - 2.0f, kCarPlate - 2.0f }, ui.Texture(CarTexture(direction)), tint);
             Ui::TextStyle label;
             label.size  = 13.0f;
             label.bold  = true;
@@ -593,7 +595,7 @@ void CityScene::DrawJobPopup(const SceneFrame& frame, const UiRect& area, const 
         snprintf(men, sizeof(men), "%d to %d", def.minCrew, def.maxCrew);
     const std::string reward = def.reward > 0 ? MoneyText(def.reward) : "None";
     const std::string heat   = Signed((int)std::lround(def.heat));
-    const std::string fail   = "Lose it all, heat " + Signed((int)std::lround(def.failHeat));
+    const std::string fail   = "Heat " + Signed((int)std::lround(def.failHeat)) + ", men at risk";
     const struct { const char* label; std::string value; Color color; } terms[] = {
         { "Investment", MoneyText(def.investment), def.investment > 0 ? kAmber : kGood },
         { "Reward", reward, kGood },
