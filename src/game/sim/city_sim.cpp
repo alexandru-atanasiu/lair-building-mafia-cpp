@@ -46,10 +46,6 @@ namespace
     constexpr int   kMaxMarkers          = 9;
     constexpr float kExpiryJitter        = 0.3f; // +-30% of a mission's markerHours
 
-    // Bunks: nobody else provides them yet. Replace by lair_sim's count at the merge.
-    constexpr int   kBunksStub = 10;
-    int BunkCapacity(const GameState&) { return kBunksStub; }
-
     // ---- The missions: one row each ----
 
     const Color kMarkerMoney = { 0.82f, 0.68f, 0.32f, 1.0f };
@@ -264,11 +260,6 @@ namespace
     }
 }
 
-int GetCrewCapacity(const GameState& state)
-{
-    return BunkCapacity(state);
-}
-
 std::span<const MissionDef> GetMissionDefs()
 {
     return kMissions;
@@ -385,7 +376,7 @@ void CitySim::TickMarkers(GameState& state, const SimStep& step)
         const int live = (int)std::count_if(markers.begin(), markers.end(), [i](const CityMarker& m) { return m.def == (int)i; });
         if (live >= defs[i].maxLive)
             continue;
-        if (defs[i].effect == MissionEffect::Hire && (int)state.crew.size() >= BunkCapacity(state))
+        if (defs[i].effect == MissionEffect::Hire && (int)state.crew.size() >= CrewCapacity(state))
             continue;
         weights[i] = defs[i].weight;
         total += defs[i].weight;
@@ -767,8 +758,8 @@ const char* CitySim::WhyNotGo(const GameState& state, const MissionDef& def, con
 
 const char* CitySim::WhyNotHire(const GameState& state, const MissionDef& def) const
 {
-    if ((int)state.crew.size() >= BunkCapacity(state))
-        return "No free bunks";
+    if ((int)state.crew.size() >= CrewCapacity(state))
+        return "No free bunk: build Bunks in the lair";
     if (state.money < def.investment)
         return "Not enough money";
     return nullptr;

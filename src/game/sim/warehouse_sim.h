@@ -125,6 +125,10 @@ struct WarehouseSim
     bool  doorEdgesOpen = false;
 };
 
+// Free men a docked truck could use right now. The truck comes before lair work, which holds this
+// many back (DispatchJobs in lair_sim.cpp), so a long dig can't starve it.
+int CarriersWanted(const GameState& state);
+
 // Crates that fit: the racks plus ExtraCrateCapacity.
 int CrateCapacity(const GameState& state);
 

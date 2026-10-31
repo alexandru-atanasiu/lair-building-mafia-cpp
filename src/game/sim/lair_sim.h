@@ -87,7 +87,7 @@ constexpr int   kLairRoomBuilders   = 3;
 constexpr int   kLairDoorCost       = 100;
 constexpr float kLairDoorSeconds    = 3.0f;
 constexpr float kLairRefundFraction = 0.5f; // of the cost, for deleting something built; cancelling a job refunds it all
-constexpr int   kLairBaseCrewCapacity = 6;  // who can sleep on the floor, before any bunk
+constexpr int   kLairBaseCrewCapacity = 6;  // a new game's men sleep on the floor; anyone more needs a bunk
 constexpr int   kLairFirstJobId     = 1000000; // far from anyone else's CrewMember::jobId
 
 // ---- State ----

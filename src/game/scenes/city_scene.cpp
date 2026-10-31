@@ -787,7 +787,7 @@ void CityScene::DrawHirePopup(Ui& ui, const UiRect& area, const CityMarker& mark
     line.size  = 14.0f;
     line.color = kDim;
     char terms[96];
-    snprintf(terms, sizeof(terms), "He costs %s to bring in. The lair has %d men in %d bunks.", MoneyText(def.investment).c_str(), (int)m_state.crew.size(), GetCrewCapacity(m_state));
+    snprintf(terms, sizeof(terms), "He costs %s to bring in. The lair sleeps %d, and you have %d men.", MoneyText(def.investment).c_str(), CrewCapacity(m_state), (int)m_state.crew.size());
     ui.Label({ x, y }, ui.WrapText(terms, w, line.size), line);
     y += 44.0f;
 

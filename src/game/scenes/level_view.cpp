@@ -19,12 +19,27 @@ LevelView::LevelView(const SceneServices& services, WorldLevel level, const Tile
     m_camera.Reset(world.TileCenter(startFocus));
 }
 
+namespace
+{
+    // On the stairs, someone shows in whichever view he's in sight of: the warehouse sees the top
+    // of the flight, the lair the bottom, up to where its stairs are cut off (`stairs_cut`).
+    constexpr float kGroundShowsAboveY = -2.2f;
+    constexpr float kLairShowsBelowY   = -2.7f;
+}
+
+bool LevelView::IsShownHere(const CrewMember& member) const
+{
+    if (member.away)
+        return false;
+    return m_level == WorldLevel::Ground ? member.motion.position.y > kGroundShowsAboveY : member.motion.position.y < kLairShowsBelowY;
+}
+
 void LevelView::Update(const SceneFrame& frame)
 {
     m_camera.Update(frame.realSeconds, frame.keyboardAvailable, frame.mouseAvailable && !frame.ui.WantsMouse());
 
     for (const CrewMember& member : m_services.state.crew)
-        if (!member.away && member.motion.level == m_level)
+        if (IsShownHere(member))
             m_services.characters.Animate(member.id, member.motion, frame.sim.simSeconds);
 }
 
@@ -37,7 +52,7 @@ void LevelView::DrawCrew(const SceneRenderers& renderers) const
 {
     SkinnedMeshRenderer::Scope skinned = renderers.skinned.Begin(m_camera.GetCamera(), m_lighting);
     for (const CrewMember& member : m_services.state.crew)
-        if (!member.away && member.motion.level == m_level)
+        if (IsShownHere(member))
             m_services.characters.Draw(skinned, member.id, member.motion, member.tint);
 }
 

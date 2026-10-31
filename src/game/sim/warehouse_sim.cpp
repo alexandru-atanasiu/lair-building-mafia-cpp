@@ -35,7 +35,8 @@ namespace
     constexpr float kCrawlSpeed        = 1.2f;
 
     // Taken by carriers as their CrewMember::jobId; other systems use their own values.
-    constexpr int kWarehouseJobId = 1000001;
+    constexpr int kWarehouseJobId = 1001;
+    static_assert(kWarehouseJobId < kLairFirstJobId && kWarehouseJobId != CitySim::kMissionJobId);
 
     // ---- The truck's routes, in world metres. The big door is at x = 16, z = -4; the road runs
     // along z at x = 32, and the truck drives on the x = 34 side going +z. It passes the gate,
@@ -411,11 +412,17 @@ namespace
         return state.world.GetTile(under).kind != TileKind::Stairwell;
     }
 
-    bool IsFreeCrewOnStairs(const GameState& state)
+    // Someone who'll be free for the truck in a moment: stepping off the stairs, or finishing a
+    // bit of lair work (the lair holds back free men while the truck needs them).
+    bool IsCrewComingFree(const GameState& state)
     {
         for (const CrewMember& member : state.crew)
-            if (!member.away && member.jobId == 0 && member.role != CrewRole::Boss && !CanHire(state, member))
+        {
+            if (member.away || member.role == CrewRole::Boss)
+                continue;
+            if (member.jobId >= kLairFirstJobId || (member.jobId == 0 && !CanHire(state, member)))
                 return true;
+        }
         return false;
     }
 
@@ -523,8 +530,7 @@ namespace
             hold = TruckHold::NoCrew;
         }
 
-        // Someone just stepping off a staircase can be hired in a moment.
-        if (hold == TruckHold::NoCrew && IsFreeCrewOnStairs(state))
+        if (hold == TruckHold::NoCrew && IsCrewComingFree(state))
             return;
 
         if (hold != sim.hold)
@@ -639,6 +645,14 @@ int GetShipmentKindCount()
 const ShipmentKind& GetShipmentKind(int kind)
 {
     return kShipmentKinds[std::clamp(kind, 0, GetShipmentKindCount() - 1)];
+}
+
+int CarriersWanted(const GameState& state)
+{
+    const WarehouseSim& sim = state.warehouse;
+    if (sim.phase != TruckPhase::Working)
+        return 0;
+    return std::max(std::min(WorkLeft(state), kMaxCarriers - (int)sim.carriers.size()), 0);
 }
 
 int CrateCapacity(const GameState& state)

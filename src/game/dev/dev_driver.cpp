@@ -109,7 +109,7 @@ namespace
             const TileCoord tile = state.world.WorldToTile(member.motion.level, member.motion.position);
             out << " crew" << member.id << "=" << member.name << ":" << (member.role == CrewRole::Boss ? "boss" : "soldier") << ":"
                 << (member.motion.level == WorldLevel::Ground ? "ground" : "under") << ":" << tile.x << ":" << tile.z << ":"
-                << (member.away ? "away" : (member.motion.IsMoving() ? "walking" : "idle"));
+                << (member.away ? "away" : (member.motion.IsMoving() ? "walking" : "idle")) << ":" << member.jobId;
         }
         return out.str();
     }

@@ -11,6 +11,7 @@ namespace
 {
     constexpr float kCarefulHeatLimit = 30.0f; // the careful player stops working above this
     constexpr float kCarefulBribeHeat = 25.0f; // and buys it down from here
+    constexpr int   kCratesWorthShipping = 6;  // the smuggler sends a load off from here
 
     const char* PhaseName(MissionPhase phase)
     {
@@ -137,8 +138,33 @@ std::string ExecuteCityCommand(GameState& state, std::istringstream& in)
     return out.str();
 }
 
+namespace
+{
+    // Plays the warehouse: sells when it holds a load, buys the dearest kind it can afford
+    // (contraband only if `contraband`, as it brings the most heat).
+    void RunSmuggler(GameState& state, bool contraband)
+    {
+        if (state.warehouse.phase != TruckPhase::Gone)
+            return;
+        if (state.crates >= kCratesWorthShipping)
+        {
+            OrderShipOut(state);
+            return;
+        }
+        for (int kind = GetShipmentKindCount() - (contraband ? 1 : 2); kind >= 0; --kind)
+            if (CanOrderShipment(state, kind) && OrderShipment(state, kind))
+                return;
+    }
+}
+
 void RunCityAutoPlayer(GameState& state, int mode)
 {
+    // 1 greedy missions, 2 careful missions, 3 only smuggling, 4 smuggling and greedy missions.
+    if (mode >= 3)
+        RunSmuggler(state, mode == 4);
+    if (mode == 3)
+        return;
+
     CitySim&   city = state.city;
     const auto defs = GetMissionDefs();
 
@@ -149,12 +175,12 @@ void RunCityAutoPlayer(GameState& state, int mode)
         const MissionDef& def = defs[(size_t)marker.def];
         if (def.effect == MissionEffect::Hire)
         {
-            if (mode == 1 && state.money > 6000)
+            if (mode != 2 && state.money > 6000)
                 city.HireCandidate(state, marker.id);
             continue;
         }
         const bool isBribe = def.heat < 0.0f;
-        if (mode == 1 && isBribe)
+        if (mode != 2 && isBribe)
             continue; // the greedy player doesn't pay to cool off
         if (mode == 2)
         {

@@ -293,11 +293,19 @@ namespace
         if (state.lair.jobs.empty())
             return;
 
+        // The truck comes first: leave it the men it can use.
+        int forTruck = CarriersWanted(state);
+
         std::vector<FreeWorker> workers;
         for (CrewMember& member : state.crew)
         {
             if (!IsFreeForWork(member))
                 continue;
+            if (forTruck > 0)
+            {
+                --forTruck;
+                continue;
+            }
             FreeWorker worker;
             worker.member = &member;
             TileCoord from = TileUnder(state, member);
@@ -718,6 +726,18 @@ namespace
 
 void LairSim::Tick(GameState& state, const SimStep& step)
 {
+    // Someone taken for other work, or gone: what he meant to do here is off, and leaves his spot
+    // for others. A job he left stays in the queue with its progress.
+    for (const CrewMember& member : state.crew)
+    {
+        if (member.away || (member.jobId != 0 && member.jobId < kLairFirstJobId))
+        {
+            LairCrewTask& task = GetTask(state.lair, member.id);
+            task.hasSpot = false;
+            task.faces   = false;
+        }
+    }
+
     RefreshLairReachable(state);
     UpdateWorkers(state, step);
     RefreshLairReachable(state);

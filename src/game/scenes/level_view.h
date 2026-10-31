@@ -43,6 +43,7 @@ public:
 
 private:
     void DrawLevel(MeshRenderer::Scope& meshes) const;
+    bool IsShownHere(const CrewMember& member) const;
 
     const SceneServices m_services;
     WorldLevel          m_level;

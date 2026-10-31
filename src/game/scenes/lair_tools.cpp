@@ -28,6 +28,8 @@ namespace
     const Color kProblemColor = { 0.98f, 0.76f, 0.30f, 1.0f };
     const Color kDimText     = { 0.72f, 0.68f, 0.58f, 1.0f };
     const Color kLabelBack   = { 0.05f, 0.05f, 0.05f, 0.72f };
+    constexpr float kPersonHeight  = 1.8f;
+    constexpr float kCoveringAlpha = 0.18f;
 
     std::string Money(int amount)
     {
@@ -163,18 +165,41 @@ void LairTools::BuildLabels(Ui& ui, const OrbitCamera& camera)
         const float width = std::max(ui.MeasureText(type.name, 15.0f, true), ui.MeasureText(line, 13.0f)) + 14.0f;
         const float height = ui.GetLineHeight(15.0f) + ui.GetLineHeight(13.0f) + 6.0f;
         const UiRect back = { at.x - 0.5f * width, at.y - 0.5f * height, width, height };
-        ui.Fill(back, kLabelBack);
+
+        // Nearly gone while it would cover someone: people matter more than the sign.
+        bool coversSomeone = false;
+        for (const CrewMember& member : m_state.crew)
+        {
+            if (member.away || member.motion.level != kLevel)
+                continue;
+            for (const float y : { 0.0f, kPersonHeight })
+            {
+                Vec2 person;
+                if (camera.WorldToScreen(member.motion.position + Vec3{ 0.0f, y, 0.0f }, person))
+                {
+                    person = { person.x / scale, person.y / scale };
+                    coversSomeone = coversSomeone || (person.x >= back.x && person.x <= back.x + back.w && person.y >= back.y && person.y <= back.y + back.h);
+                }
+            }
+        }
+        const float alpha = coversSomeone ? kCoveringAlpha : 1.0f;
+
+        Color backColor = kLabelBack;
+        backColor.a *= alpha;
+        ui.Fill(back, backColor);
 
         Ui::TextStyle name;
         name.size  = 15.0f;
         name.bold  = true;
         name.align = Ui::Align::Center;
+        name.color.a *= alpha;
         ui.Label({ at.x, back.y + 2.0f }, type.name, name);
 
         Ui::TextStyle detail;
         detail.size  = 13.0f;
         detail.color = status.working ? kWorksColor : kProblemColor;
         detail.align = Ui::Align::Center;
+        detail.color.a *= alpha;
         ui.Label({ at.x, back.y + 3.0f + ui.GetLineHeight(15.0f) }, line, detail);
     }
 }

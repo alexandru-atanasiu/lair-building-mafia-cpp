@@ -143,8 +143,6 @@ struct MissionChance
 int         GetHeatChancePenalty(float heat);
 int         GetHeatBand(float heat); // 0..3
 const char* GetHeatBandName(float heat);
-// How many people the lair has beds for, the boss included.
-int         GetCrewCapacity(const GameState& state);
 int         GetCrewStat(const CrewMember& member, CrewStat stat);
 const char* GetCrewStatName(CrewStat stat);
 
