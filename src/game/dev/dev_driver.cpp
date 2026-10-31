@@ -3,6 +3,7 @@
 #if defined(GAME_DEV_TOOLS_ENABLED)
 
 #include "../camera/orbit_camera.h"
+#include "city_dev.h"
 #include "../sim/simulation.h"
 #include "core/log.h"
 #include "render/render_device.h"
@@ -266,6 +267,7 @@ void DevDriver::EndFrame()
 //   order <cigarettes|booze|contraband>, shipout  the warehouse panel's buttons
 //   crates <n>                   set the stored crates
 //   crewjob <crew id> <n>        set a crew member's jobId: non-zero makes them busy
+//   city <what> ...              missions and markers: see city_dev.h
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
 //   lair                         replies jobs, rooms and their status, doors, objects and what they add up to
@@ -426,6 +428,10 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
             snprintf(position, sizeof(position), "ok %d %d", (int)screen.x, (int)screen.y);
             reply = position;
         }
+    }
+    else if (word == "city")
+    {
+        reply = ExecuteCityCommand(state, in);
     }
     else if (word == "wander")
     {

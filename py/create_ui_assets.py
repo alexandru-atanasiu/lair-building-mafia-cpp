@@ -11,7 +11,6 @@ image below and add it to ICONS. Icons are white with alpha, so widgets can tint
 Outputs:
   white.png            plain white (flat fills)
   icons/<name>.png     HUD icons
-  city_map.png         the city screen's placeholder map
 """
 
 import os
@@ -262,24 +261,6 @@ ICONS = {
 }
 
 
-def make_city_map():
-    """A flat grid of city blocks in muted colors, with grey roads and a river."""
-    w, h = 1280, 800
-    img = Image.new("RGBA", (w, h), (70, 72, 76, 255))
-    d = ImageDraw.Draw(img)
-    colors = [(92, 88, 80, 255), (84, 92, 84, 255), (96, 84, 80, 255), (82, 86, 96, 255)]
-    block, road = 96, 16
-    for row, y in enumerate(range(road, h, block + road)):
-        for col, x in enumerate(range(road, w, block + road)):
-            d.rectangle((x, y, x + block, y + block), fill=colors[(row * 3 + col * 5) % len(colors)])
-            for inset, shade in ((14, 10), (30, 18)):
-                r, g, b, a = colors[(row * 3 + col * 5) % len(colors)]
-                d.rectangle((x + inset, y + inset, x + block - inset, y + block - inset),
-                            fill=(r + shade, g + shade, b + shade, a))
-    d.polygon([(0, 640), (w, 520), (w, 620), (0, 740)], fill=(52, 72, 92, 255))
-    return img
-
-
 def save(img, rel):
     path = os.path.join(OUT_DIR, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -293,7 +274,6 @@ def main():
         img = Image.new("RGBA", (ICON, ICON), CLEAR)
         draw(ImageDraw.Draw(img))
         save(img, os.path.join("icons", name + ".png"))
-    save(make_city_map(), "city_map.png")
 
 
 main()

@@ -57,6 +57,7 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | `order cigarettes\|booze\|contraband`, `shipout` | the warehouse panel's buttons |
 | `crates <n>`, `crewjob <crew id> <n>` | set the stored crates; set a crew member's `jobId` (non-zero makes them busy) |
 | `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crates=0 capacity=24 truck=gone hold=none cargo=0 carriers=Sal*,Tony paymentsdue=0 ... crew1=Don Carlo:boss:under:19:24:idle ...` (`*` = holding a crate) |
+| `city markers\|crew\|missions\|totals`, `city spawn <key>`, `city go <marker> <crew ids>`, `city hire <marker>`, `city job <crew id> <jobId>`, `city auto <0\|1\|2>` | the city map (`src/game/dev/city_dev.h`): `markers` gives each one's screen position to click; `auto` plays the map as a greedy (1) or careful (2) player, for tuning |
 | `quit` | close the game |
 
 Add a command in `DevDriver::Execute`. Ship has no driver: `py/capture_window.py` screenshots a running window from outside and posts clicks and keys to it (`run.bat ship -windowed`, then `python py\capture_window.py "wait 2" "shot a.png" "key tab" "shot b.png" close`). With other copies of the game running, use `--pid <id>` and, for `dev_client.py`, your own `--pipe <name>`.
@@ -186,6 +187,14 @@ The front: fixed floor plan, a truck, a buy-and-sell loop. Tuning numbers are at
 - **For `law_sim`:** read `state.crates` (count), `state.warehouse.stored` (`StoredCrate`: `position`, `tile`, `slot`, `kind`), `warehouse.cargo` and `warehouse.phase`. To confiscate, lower `state.crates`: the newest go first and `Tick` keeps `stored` in step, including a carrier who was on the way to one. A law character can walk the ground level normally: outside is Pavement, with the front door at (19, 10), and the big door is open only while a truck is docked.
 - **View:** `WarehouseScene` is fixed dressing built once (`BuildProps`) plus the truck, the door and the crates drawn from the sim. Near walls stay low and the others get `wall_upper`, chosen by the camera's direction every frame (`DrawTallWalls`, `kCutawayFacing`). The panel is `scenes/warehouse_panel.cpp`. Meshes: `py/create_warehouse_meshes.py` (writes `assets/meshes/warehouse/`, run like `create_meshes.py`). Icons: `py/create_warehouse_ui.py`.
 - **`ExtraCrateCapacity`** is a stub returning 0 in `lair_sim.cpp`. `lair-building` defines the real one (`lair_build.cpp`): delete the stub at merge. Crates beyond the racks go in 2 x 2 stacks on the overflow pallets in the warehouse (`kOverflowTiles`), however many there are, so raids can find them.
+### The city map (`sim/city_sim.*`, `scenes/city_scene.*`)
+- **Art and data come from one script:** `python py/create_city_art.py` draws `assets/ui/city/` (map, marker icons, cars, portrait layers) and generates `src/game/sim/city_map_data.h` (road graph, sites, districts, in map pixels). Never edit the header. The map is a table of blocks (`CELLS`), and a new place for missions is a line in `SITES`. Rerun `cook.bat` after it.
+- **A mission is a row of `kMissions`** at the top of `city_sim.cpp`, with the other tuning numbers. A row names its `CityLocation`, and markers appear on free sites of that type. `MissionEffect::Hire` is the Recruit marker: nobody goes, the candidate joins.
+- **Going:** `StartMission` charges the investment and overwrites the man's `jobId` with `CitySim::kMissionJobId`. He walks to the warehouse's door (found in the world: a Door edge from Floor to Pavement) and turns `away` there. When all are out the car drives (`MissionPhase`), the job runs, and `Resolve` pays or punishes. Back home, `ComeBack` clears `jobId` and walks him in.
+- **Job systems:** a man can be taken off a job at any time by the player. Whoever gave the job must notice that `jobId` isn't theirs any more, and put the work back. Don't give work to men with `jobId != 0`.
+- **Status:** `city.GetCrewStatus(member)`; wounded and arrested men stay `away` until their `CrewOut` runs out.
+- **Heat:** only through `GameState::AddHeat`. Missions add it and `CitySim::TickHeat` lowers it once a game hour. `GetHeatChancePenalty` is the only effect it has here; what the law does about heat is `law_sim`'s. The HUD warns on any rise of more than 0.5.
+- **Bunks are a stub:** `BunkCapacity` in `city_sim.cpp` returns 10; at the merge it should return the lair's capacity.
 
 ## Conventions
 - `__generated/` is build/cook output only; never put sources there.

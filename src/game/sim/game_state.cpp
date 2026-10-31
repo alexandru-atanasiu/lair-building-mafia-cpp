@@ -57,6 +57,7 @@ GameState::GameState()
         PlaceCharacter(member.motion, world, start.tile);
         crew.push_back(std::move(member));
     }
+    city.Init(*this);
 }
 
 void GameState::AddHeat(float amount)
