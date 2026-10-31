@@ -29,6 +29,8 @@ public:
     void SetVerticalFov(float radians) { m_camera.SetVerticalFov(radians); }
     // Looks at `focus` (x/z; y is the ground height) from the default distance and angle.
     void Reset(Vec3 focus);
+    void SetDistance(float distance) { m_distance = distance; UpdateCamera(); }
+    void SetYaw(float yaw) { m_yaw = yaw; UpdateCamera(); }
 
     // Applies input; ignores keyboard/mouse input the dev UI or game UI is using.
     void Update(float deltaSeconds, bool keyboardAvailable, bool mouseAvailable);

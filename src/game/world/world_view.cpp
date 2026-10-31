@@ -54,6 +54,7 @@ void WorldView::Draw(MeshRenderer::Scope& scope, const WorldGrid& world, WorldLe
             case TileKind::Floor:     scope.Draw(*m_floor, at, kFloorColors[checker]); break;
             case TileKind::Pavement:  scope.Draw(*m_floor, at, kPavementColors[checker]); break;
             case TileKind::Stairwell: break; // the stairs fill it (a hole in the ground level)
+            case TileKind::Fixture:   scope.Draw(*m_floor, at, kFloorColors[checker]); break;
             }
 
             // Each edge once: this tile's far sides, and the near sides on the grid's border.

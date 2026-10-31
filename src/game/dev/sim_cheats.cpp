@@ -38,6 +38,7 @@ void RegisterSimCheats(DebugPad& pad, Simulation& simulation)
         }
 
         ImGui::Checkbox("Idle crew wander", &state.lair.wanderEnabled);
+        ImGui::InputInt("Crates", &state.crates);
         if (ImGui::Button("Post test event"))
             state.PostEvent(GameEventKind::Info, "A test event from the DebugPad.");
 

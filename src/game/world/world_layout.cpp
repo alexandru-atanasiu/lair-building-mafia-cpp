@@ -1,5 +1,7 @@
 #include "world_layout.h"
 
+#include "warehouse_layout.h"
+
 namespace
 {
     constexpr TileCoord kStairUpper = { WorldLevel::Ground, 20, 14 };
@@ -46,6 +48,7 @@ WorldGrid MakeStartingWorld()
     FillRect(world, WorldLevel::Underground, kBasement, TileKind::Floor);
 
     world.AddStair(kStairUpper, kStairLower);
+    LayOutWarehouse(world);
     return world;
 }
 
