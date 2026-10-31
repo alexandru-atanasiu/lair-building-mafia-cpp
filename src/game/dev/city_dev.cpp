@@ -160,10 +160,11 @@ namespace
 
 void RunCityAutoPlayer(GameState& state, int mode)
 {
-    // 1 greedy missions, 2 careful missions, 3 only smuggling, 4 smuggling and greedy missions.
+    // 1 greedy missions, 2 careful missions, 3 only smuggling up to booze, 4 smuggling and
+    // missions, 5 only smuggling, contraband when it can.
     if (mode >= 3)
-        RunSmuggler(state, mode == 4);
-    if (mode == 3)
+        RunSmuggler(state, mode != 3);
+    if (mode == 3 || mode == 5)
         return;
 
     CitySim&   city = state.city;

@@ -16,8 +16,9 @@ struct GameState;
 //   city missions                id:key:phase:crew:chance:car position for each one going on
 //   city job <crew id> <jobId>   gives a man a job number, to test taking men off their work
 //   city totals                  started, won, lost, earned, spent, heat from missions
-//   city auto <0|1|2|3|4>        nobody, greedy missions, careful missions, only smuggling, or
-//                                smuggling with missions by free men while heat is under 50
+//   city auto <0..5>             nobody, greedy missions, careful missions, smuggling up to booze,
+//                                smuggling with missions by free men while heat is under 50,
+//                                smuggling with contraband
 std::string ExecuteCityCommand(GameState& state, std::istringstream& in);
 
 void RunCityAutoPlayer(GameState& state, int mode);

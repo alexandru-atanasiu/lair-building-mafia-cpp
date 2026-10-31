@@ -14,8 +14,8 @@ namespace
 
     const ShipmentKind kShipmentKinds[] = {
         // name          lower          dev            crates cost  hours heat  sale per crate
-        { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  2,    1.0f, 350 },
-        { "Booze",      "booze",      "booze",         8,    2400,  2,    3.0f, 640 },
+        { "Cigarettes", "cigarettes", "cigarettes",    8,    1200,  1,    1.0f, 350 },
+        { "Booze",      "booze",      "booze",         8,    2400,  1,    3.0f, 640 },
         { "Contraband", "contraband", "contraband",    6,    4000,  3,    9.0f, 1500 },
     };
     constexpr int   kTruckCapacity     = 12;   // crates a Ship out can take at once
@@ -24,7 +24,7 @@ namespace
     constexpr float kShipOutHeat       = 1.0f; // added when a loaded truck leaves
     constexpr int   kMaxCarriers       = 4;    // crew on a truck at once
     constexpr float kHandlingSeconds   = 0.5f; // sim seconds to lift or put down a crate
-    constexpr float kCarrySpeed        = 3.2f; // metres per sim second with a crate; empty-handed is the usual run
+    constexpr float kCarrySpeed        = 3.6f; // metres per sim second with a crate; empty-handed is the usual run
     constexpr float kHireEverySeconds  = 0.5f;
 
     constexpr float kOpenSeconds       = 1.5f;
