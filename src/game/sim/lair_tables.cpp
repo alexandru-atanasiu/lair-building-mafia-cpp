@@ -12,6 +12,7 @@ namespace
     const Color kMahogany  = { 0.32f, 0.13f, 0.08f, 1.0f };
     const Color kSteel     = { 0.42f, 0.44f, 0.47f, 1.0f };
     const Color kGunmetal  = { 0.15f, 0.16f, 0.18f, 1.0f };
+    const Color kSafeGreen = { 0.20f, 0.27f, 0.25f, 1.0f };
     const Color kOlive     = { 0.28f, 0.31f, 0.18f, 1.0f };
     const Color kLinen     = { 0.78f, 0.75f, 0.66f, 1.0f };
     const Color kCardboard = { 0.60f, 0.46f, 0.29f, 1.0f };
@@ -88,7 +89,7 @@ namespace
 
         { .key = "safe", .name = "Safe", .description = "Protects $5,000 from a raid.", .icon = "ui/icons/obj_safe.tex", .room = "vault",
           .cost = 800, .buildSeconds = 8.0f, .height = 1.3f,
-          .parts = { { "meshes/objects/safe_body.mesh", kGunmetal }, { "meshes/objects/safe_dial.mesh", kBrass } },
+          .parts = { { "meshes/objects/safe_body.mesh", kSafeGreen }, { "meshes/objects/safe_dial.mesh", kBrass } },
           .protectedMoney = 5000 },
     };
 }

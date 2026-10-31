@@ -18,6 +18,7 @@ namespace
     constexpr float kItemHeight  = 50.0f;
     constexpr float kGap         = 5.0f;
     constexpr float kWallPickRange = 1.3f; // metres from the cursor on the floor
+    constexpr float kDoorPickRange = 0.8f;
 
     const Color kValid       = { 0.25f, 0.95f, 0.35f, 0.42f };
     const Color kInvalid     = { 0.95f, 0.18f, 0.12f, 0.45f };
@@ -138,9 +139,24 @@ void LairTools::BuildLabels(Ui& ui, const OrbitCamera& camera)
     {
         const LairRoomType&  type   = GetLairRoomTypes()[(size_t)room.type];
         const LairRoomStatus status = GetLairRoomStatus(m_state, room);
-        const Vec3 center = (m_state.world.TileCenter({ kLevel, room.rect.x0, room.rect.z0 }) + m_state.world.TileCenter({ kLevel, room.rect.x1, room.rect.z1 })) * 0.5f;
+        // On the wall nearest the camera (the middle of a side lowest on screen), where it hides
+        // nobody in the room.
+        const Vec3  low  = m_state.world.TileCenter({ kLevel, room.rect.x0, room.rect.z0 }) - Vec3{ 0.5f * kTileSize, 0.0f, 0.5f * kTileSize };
+        const Vec3  high = m_state.world.TileCenter({ kLevel, room.rect.x1, room.rect.z1 }) + Vec3{ 0.5f * kTileSize, 0.0f, 0.5f * kTileSize };
+        const float midX = 0.5f * (low.x + high.x), midZ = 0.5f * (low.z + high.z);
+        const Vec3  sides[4] = { { midX, low.y, low.z }, { midX, low.y, high.z }, { low.x, low.y, midZ }, { high.x, low.y, midZ } };
         Vec2 at;
-        if (!toUi(center + Vec3{ 0.0f, 0.05f, 0.0f }, at))
+        bool shown = false;
+        for (const Vec3& side : sides)
+        {
+            Vec2 candidate;
+            if (toUi(side, candidate) && (!shown || candidate.y > at.y))
+            {
+                at    = candidate;
+                shown = true;
+            }
+        }
+        if (!shown)
             continue;
 
         const std::string line = status.working ? "Works" : status.problem;
@@ -240,6 +256,8 @@ void LairTools::BuildMenu(Ui& ui)
                     m_tool       = Tool::Object;
                     m_objectType = i;
                     m_dragging   = false;
+                    // Things show their front to the default camera; seats their back, to face what's in front of them.
+                    m_rotation   = type.seat ? 0 : 2;
                 }
             }
         }
@@ -389,7 +407,22 @@ const LairDoor* LairTools::PickDoor(const OrbitCamera& camera) const
     LairEdge edge;
     if (!PickWall(camera, edge))
         return nullptr;
-    return FindLairDoor(m_state, edge);
+    const LairDoor* door = FindLairDoor(m_state, edge);
+    if (!door)
+        return nullptr;
+
+    // Picking a wall is generous; picking a door to delete shouldn't take the room around it.
+    Vec3 origin, direction;
+    camera.ScreenRay(CursorOf(m_window), origin, direction);
+    const float height = std::min(m_view.GetEdgeHeight(edge), 1.2f);
+    const Vec3  center = GetLairEdgeCenter(m_state, edge);
+    for (const float y : { 0.0f, height })
+    {
+        const Vec3 p = origin + direction * ((kUndergroundFloorY + y - origin.y) / direction.y);
+        if (Length(Vec3{ p.x - center.x, 0.0f, p.z - center.z }) < kDoorPickRange)
+            return door;
+    }
+    return nullptr;
 }
 
 const LairObject* LairTools::PickObject(const OrbitCamera& camera) const
@@ -513,87 +546,86 @@ void LairTools::UpdateNone(const SceneFrame& frame, const TileCoord& tile, bool 
 
 void LairTools::UpdateDig(const SceneFrame& frame, const TileCoord& tile, bool onWorld)
 {
+    if (!m_dragging && !onWorld)
+        return;
+
     const bool cancelling = m_window.IsKeyDown(Key::Control);
-
-    if (m_dragging || onWorld)
+    if (onWorld && m_window.WasMouseButtonPressed(MouseButton::Left))
     {
-        const TileCoord end = onWorld ? tile : m_dragEnd;
-        m_dragEnd = end;
+        m_dragging  = true;
+        m_dragStart = tile;
+    }
+    if (onWorld)
+        m_dragEnd = tile;
+
+    const LairRect rect = m_dragging ? MakeRect(m_dragStart, m_dragEnd) : MakeRect(m_dragEnd, m_dragEnd);
+
+    // What the rectangle would do: green marks, as far as the money goes, and red where it can't.
+    int         count = 0, cost = 0;
+    int64_t     budget = m_state.money;
+    std::string reason;
+    for (int z = rect.z0; z <= rect.z1; ++z)
+    {
+        for (int x = rect.x0; x <= rect.x1; ++x)
         {
-            if (onWorld && m_window.WasMouseButtonPressed(MouseButton::Left))
+            const TileCoord c = { kLevel, x, z };
+            if (cancelling)
             {
-                m_dragging  = true;
-                m_dragStart = tile;
-            }
-
-            const LairRect rect = m_dragging ? MakeRect(m_dragStart, end) : MakeRect(end, end);
-            int     count = 0, cost = 0;
-            int64_t budget = m_state.money;
-            std::string reason;
-            for (int z = rect.z0; z <= rect.z1; ++z)
-            {
-                for (int x = rect.x0; x <= rect.x1; ++x)
+                if (FindLairDigJob(m_state, c))
                 {
-                    const TileCoord c = { kLevel, x, z };
-                    if (cancelling)
-                    {
-                        if (FindLairDigJob(m_state, c))
-                        {
-                            m_tileGhosts.push_back({ c, kCancel });
-                            ++count;
-                        }
-                        continue;
-                    }
-                    const LairCheck check = CheckLairDig(m_state, c);
-                    if (check.ok && budget >= check.cost)
-                    {
-                        budget -= check.cost;
-                        cost += check.cost;
-                        ++count;
-                        m_tileGhosts.push_back({ c, kValid });
-                    }
-                    else if (m_state.world.GetTile(c).kind == TileKind::Earth && !FindLairDigJob(m_state, c))
-                    {
-                        m_tileGhosts.push_back({ c, kInvalid });
-                        reason = check.ok ? "Not enough money" : check.reason;
-                    }
-                    else if (rect.x0 == rect.x1 && rect.z0 == rect.z1)
-                    {
-                        reason = check.reason;
-                    }
+                    m_tileGhosts.push_back({ c, kCancel });
+                    ++count;
                 }
+                continue;
             }
-
-            if (onWorld)
+            const LairCheck check = CheckLairDig(m_state, c);
+            if (check.ok && budget >= check.cost)
             {
-                if (cancelling)
-                {
-                    if (count > 0)
-                        frame.ui.Tooltip("Cancel " + std::to_string(count) + " marks");
-                }
-                else if (count > 0)
-                    frame.ui.Tooltip("Dig " + std::to_string(count) + (count == 1 ? " tile: " : " tiles: ") + Money(cost) + (reason.empty() ? "" : "\n" + reason));
-                else if (!reason.empty())
-                    frame.ui.Tooltip(reason);
+                budget -= check.cost;
+                cost += check.cost;
+                ++count;
+                m_tileGhosts.push_back({ c, kValid });
             }
-
-            if (m_dragging && !m_window.IsMouseButtonDown(MouseButton::Left))
+            else if (m_state.world.GetTile(c).kind == TileKind::Earth && !FindLairDigJob(m_state, c))
             {
-                for (int z = rect.z0; z <= rect.z1; ++z)
-                {
-                    for (int x = rect.x0; x <= rect.x1; ++x)
-                    {
-                        const TileCoord c = { kLevel, x, z };
-                        if (cancelling)
-                            CancelLairDig(m_state, c);
-                        else
-                            MarkLairDig(m_state, c);
-                    }
-                }
-                m_dragging = false;
-                m_tileGhosts.clear();
+                m_tileGhosts.push_back({ c, kInvalid });
+                reason = check.ok ? "Not enough money" : check.reason;
+            }
+            else if (rect.x0 == rect.x1 && rect.z0 == rect.z1)
+            {
+                reason = check.reason;
             }
         }
+    }
+
+    if (onWorld)
+    {
+        if (cancelling)
+        {
+            if (count > 0)
+                frame.ui.Tooltip("Cancel " + std::to_string(count) + " marks");
+        }
+        else if (count > 0)
+            frame.ui.Tooltip("Dig " + std::to_string(count) + (count == 1 ? " tile: " : " tiles: ") + Money(cost) + (reason.empty() ? "" : "\n" + reason));
+        else if (!reason.empty())
+            frame.ui.Tooltip(reason);
+    }
+
+    if (m_dragging && !m_window.IsMouseButtonDown(MouseButton::Left))
+    {
+        for (int z = rect.z0; z <= rect.z1; ++z)
+        {
+            for (int x = rect.x0; x <= rect.x1; ++x)
+            {
+                const TileCoord c = { kLevel, x, z };
+                if (cancelling)
+                    CancelLairDig(m_state, c);
+                else
+                    MarkLairDig(m_state, c);
+            }
+        }
+        m_dragging = false;
+        m_tileGhosts.clear();
     }
 }
 
@@ -609,9 +641,9 @@ void LairTools::UpdateRoom(const SceneFrame& frame, const TileCoord& tile, bool 
     if (!m_dragging && !onWorld)
         return;
 
-    const TileCoord end  = onWorld ? tile : m_dragEnd;
-    m_dragEnd = end;
-    const LairRect  rect = m_dragging ? MakeRect(m_dragStart, end) : MakeRect(end, end);
+    if (onWorld)
+        m_dragEnd = tile;
+    const LairRect  rect = m_dragging ? MakeRect(m_dragStart, m_dragEnd) : MakeRect(m_dragEnd, m_dragEnd);
     const LairCheck check = CheckLairRoom(m_state, m_roomType, rect);
 
     // Hovering before a drag: a single tile, which is only a hint unless it's already wrong.

@@ -11,7 +11,8 @@ namespace
 {
     // The default view: near enough to read what a man is doing, and turned so that two walls of
     // a room face you. Everything can still be zoomed and turned.
-    constexpr float kDefaultDistance = 17.0f;
+    constexpr float kDefaultFov      = DegToRad(32.0f);
+    constexpr float kDefaultDistance = 27.0f;
     constexpr float kDefaultPitch    = DegToRad(-58.0f);
     constexpr float kDefaultYaw      = DegToRad(-28.0f);
 
@@ -41,6 +42,7 @@ LairScene::LairScene(const SceneServices& services)
     , m_tools(services, m_lair)
     , m_translucent(std::make_unique<MeshRenderer>(services.device, MeshRenderStyle::Translucent))
 {
+    m_view.GetCamera().SetVerticalFov(kDefaultFov);
     m_view.GetCamera().SetDefaultView(kDefaultDistance, kDefaultPitch, kDefaultYaw);
     m_view.GetCamera().Reset(services.state.world.TileCenter(GetBasementCenter()));
 }

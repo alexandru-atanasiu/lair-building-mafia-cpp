@@ -52,6 +52,7 @@ private:
 
     // The wall nearest under the cursor, built or planned. False if nothing's close.
     bool PickWall(const OrbitCamera& camera, LairEdge& edge) const;
+    // A door the cursor is right on.
     const LairDoor* PickDoor(const OrbitCamera& camera) const;
     const LairObject* PickObject(const OrbitCamera& camera) const;
     void AddRoomBorder(const LairRect& rect, const Color& color);

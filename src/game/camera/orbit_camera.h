@@ -25,6 +25,8 @@ public:
     void SetGroundHeight(float y) { m_groundHeight = y; }
     // The distance and angles Reset goes to, for a view that wants its own framing.
     void SetDefaultView(float distance, float pitch, float yaw) { m_defaultDistance = distance; m_defaultPitch = pitch; m_defaultYaw = yaw; }
+    // A narrower lens from further away flattens the view, so people at the screen's edges stand upright.
+    void SetVerticalFov(float radians) { m_camera.SetVerticalFov(radians); }
     // Looks at `focus` (x/z; y is the ground height) from the default distance and angle.
     void Reset(Vec3 focus);
 

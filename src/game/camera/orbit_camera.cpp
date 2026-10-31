@@ -136,7 +136,8 @@ void OrbitCamera::Update(float deltaSeconds, bool keyboardAvailable, bool mouseA
             dir = dir * 0.70710678f; // same speed diagonally
 
         // Pan in view space: screen right / up are the camera's right / forward on the ground.
-        const float speed = kPanSpeed * m_distance * (m_window.IsKeyDown(Key::Shift) ? kFastPanScale : 1.0f);
+        const float lens  = std::tan(m_camera.GetVerticalFov() * 0.5f) / std::tan(DegToRad(30.0f)); // a narrow lens shows less
+        const float speed = kPanSpeed * lens * m_distance * (m_window.IsKeyDown(Key::Shift) ? kFastPanScale : 1.0f);
         const float sinYaw = std::sin(m_yaw), cosYaw = std::cos(m_yaw);
         const Vec2  right   = { cosYaw, -sinYaw };
         const Vec2  forward = { sinYaw, cosYaw };
