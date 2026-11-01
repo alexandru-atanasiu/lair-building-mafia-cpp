@@ -389,17 +389,9 @@ Vec3 GetLairEdgeCenter(const GameState& state, const LairEdge& edge)
     return center + (edge.side == EdgeSide::PosX ? Vec3{ 0.5f * kTileSize, 0.0f, 0.0f } : Vec3{ 0.0f, 0.0f, 0.5f * kTileSize });
 }
 
-int CrewCapacity(const GameState& state)
+int CrewCapacity(const GameState&)
 {
-    int capacity = kLairBaseCrewCapacity;
-    for (const LairObject& object : state.lair.objects)
-    {
-        const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
-        const LairRoom*       room = FindLairRoom(state, object.room);
-        if (object.built && type.crewBeds > 0 && room && GetLairRoomStatus(state, *room).working)
-            capacity += type.crewBeds;
-    }
-    return capacity;
+    return kCrewLimit;
 }
 
 int ExtraCrateCapacity(const GameState& state)

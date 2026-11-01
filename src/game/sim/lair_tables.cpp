@@ -23,7 +23,7 @@ namespace
     const Color kBottle    = { 0.22f, 0.45f, 0.32f, 1.0f };
 
     const LairRoomType kRoomTypes[] = {
-        { .key = "bunks", .name = "Bunks", .description = "Where the crew sleep. Each bed lets you keep one more man.",
+        { .key = "bunks", .name = "Bunks", .description = "Where tired men sleep it off, one to a bed. Without a bed they hardly recover.",
           .icon = "ui/icons/room_bunks.tex", .minShort = 3, .minLong = 3, .costPerTile = 15,
           .floorTint = { 0.36f, 0.42f, 0.50f, 1.0f }, .required = { { "bunk", 1 } } },
         { .key = "bar", .name = "Bar", .description = "Somewhere to drink and talk. Crew off work come here.",
@@ -44,10 +44,10 @@ namespace
     };
 
     const LairObjectType kObjectTypes[] = {
-        { .key = "bunk", .name = "Bunk", .description = "A bed for one more man.", .icon = "ui/icons/obj_bunk.tex", .room = "bunks",
+        { .key = "bunk", .name = "Bunk", .description = "A tired man rests here and is soon fit for work again.", .icon = "ui/icons/obj_bunk.tex", .room = "bunks",
           .cost = 120, .buildSeconds = 4.0f, .height = 1.7f,
           .parts = { { "meshes/objects/bunk_frame.mesh", kSteel }, { "meshes/objects/bunk_mattress.mesh", kOlive }, { "meshes/objects/bunk_pillow.mesh", kLinen } },
-          .crewBeds = 1, .useSeconds = 8.0f },
+          .bed = true },
         { .key = "footlocker", .name = "Footlocker", .description = "A man's things. Makes the place his.", .icon = "ui/icons/obj_footlocker.tex", .room = "bunks",
           .cost = 40, .buildSeconds = 2.0f, .height = 0.6f,
           .parts = { { "meshes/objects/footlocker_box.mesh", kOlive }, { "meshes/objects/footlocker_trim.mesh", kBrass } },

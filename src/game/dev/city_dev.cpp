@@ -4,7 +4,11 @@
 
 #include "../sim/game_state.h"
 
+#include "../world/world_layout.h"
+
+#include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <iterator>
 
 namespace
@@ -13,6 +17,11 @@ namespace
     constexpr float kCarefulBribeHeat = 25.0f; // and buys it down from here
     constexpr int   kCratesWorthShipping = 6;  // the smuggler sends a load off from here
     constexpr float kMixedHeatLimit = 50.0f;   // the mixed player stops missions here, and keeps smuggling
+    constexpr float kBunksFromEnergy = 70.0f;  // every auto player starts on its bunks when a man falls to this
+    constexpr int   kBunksMoneyToStart = 1500; // and it can spare this
+    constexpr int   kMoneyForABed = 700;       // what it keeps in hand to add a bed
+    constexpr int   kMenPerBed = 4;            // a bed turns a man round in 3.5 hours of his day: this leaves some over
+    constexpr int   kAutoBedCount = 6;         // what its room holds
 
     const char* PhaseName(MissionPhase phase)
     {
@@ -36,6 +45,8 @@ namespace
         case CrewStatus::OnMission: return "mission";
         case CrewStatus::Wounded: return "wounded";
         case CrewStatus::Arrested: return "arrested";
+        case CrewStatus::Tired: return "tired";
+        case CrewStatus::Resting: return "resting";
         }
         return "?";
     }
@@ -166,8 +177,87 @@ namespace
     }
 }
 
+namespace
+{
+    // A Bunks room beside the basement, 4 x 3 with a door in the wall they share and a walkway down
+    // its middle: dig it, wall it, then a bed per kMenPerBed men. Beds lost to a raid come back.
+    void RunBunkBuilder(GameState& state)
+    {
+        if (state.law.phase != RaidPhase::None)
+            return;
+
+        const LairRect rect = { kStairFoot.x + 3, kStairFoot.z + 1, kStairFoot.x + 6, kStairFoot.z + 3 };
+        const auto findType = [](auto types, const char* key) {
+            for (size_t i = 0; i < types.size(); ++i)
+                if (strcmp(types[i].key, key) == 0)
+                    return (int)i;
+            return -1;
+        };
+        const int roomType = findType(GetLairRoomTypes(), "bunks");
+        const int bedType  = findType(GetLairObjectTypes(), "bunk");
+
+        const LairRoom* room = FindLairRoomAt(state, { WorldLevel::Underground, rect.x0, rect.z0 });
+        if (!room)
+        {
+            // Not yet needed, or can't be spared.
+            bool needed = false;
+            for (const CrewMember& member : state.crew)
+                needed = needed || (member.role != CrewRole::Boss && member.energy < kBunksFromEnergy);
+            if (!needed || state.money < kBunksMoneyToStart)
+                return;
+
+            bool dug = true;
+            for (int z = rect.z0; z <= rect.z1; ++z)
+            {
+                for (int x = rect.x0; x <= rect.x1; ++x)
+                {
+                    const TileCoord tile = { WorldLevel::Underground, x, z };
+                    if (state.world.GetTile(tile).kind == TileKind::Floor)
+                        continue;
+                    dug = false;
+                    MarkLairDig(state, tile);
+                }
+            }
+            if (dug)
+                PlaceLairRoom(state, roomType, rect);
+            return;
+        }
+
+        const LairEdge door = MakeLairEdge({ WorldLevel::Underground, rect.x0 - 1, rect.z0 + 1 }, EdgeSide::PosX);
+        if (!FindLairDoor(state, door))
+        {
+            PlaceLairDoor(state, door);
+            return;
+        }
+
+        int soldiers = 0;
+        for (const CrewMember& member : state.crew)
+            soldiers += member.role != CrewRole::Boss ? 1 : 0;
+        const int wanted = std::min((soldiers + kMenPerBed - 1) / kMenPerBed, kAutoBedCount);
+
+        int beds = 0;
+        for (const LairObject& object : state.lair.objects)
+            beds += object.type == bedType ? 1 : 0;
+        if (beds >= wanted || state.money < kMoneyForABed)
+            return;
+        for (int z : { rect.z0, rect.z1 })
+        {
+            for (int x = rect.x0 + 1; x <= rect.x1; ++x)
+            {
+                const TileCoord tile = { WorldLevel::Underground, x, z };
+                if (!FindLairObjectAt(state, tile) && PlaceLairObject(state, bedType, tile, 0).ok)
+                    return;
+            }
+        }
+    }
+}
+
 void RunCityAutoPlayer(GameState& state, int mode)
 {
+    RunBunkBuilder(state);
+    if (mode == 6)
+        return; // only the bunks, for testing
+
     // 1 greedy missions, 2 careful missions, 3 only smuggling up to booze, 4 smuggling and
     // missions, 5 only smuggling, contraband when it can.
     if (mode >= 3)

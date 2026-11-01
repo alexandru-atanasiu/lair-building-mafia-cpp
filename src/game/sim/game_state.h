@@ -6,6 +6,7 @@
 #include "core/color.h"
 #include "lair_sim.h"
 #include "law_sim.h"
+#include "rest_sim.h"
 #include "warehouse_sim.h"
 
 #include <cstdint>
@@ -90,6 +91,11 @@ struct CrewMember
     int             nerve = 2;
     float           idleTime = 0.0f;  // sim seconds left before wandering on (lair_sim.cpp)
     int             jobId = 0;        // 0 = free for work; whoever gives crew work sets their own value, and clears it when done
+    float           energy = kEnergyFull; // 0..100, see rest_sim.h
+    double          tiredSince = 0.0; // game minutes: when he went off work, for taking turns at the beds
+    int             restBed = 0;      // the bed's LairObject id, reserved while he's on his way and in it; 0 = none
+    TileCoord       restSpot;         // where he stands to use it
+    bool            inBed = false;    // got there: resting
 };
 
 struct GameState
@@ -118,4 +124,5 @@ struct GameState
     LairSim      lair;
     CitySim      city;
     LawSim       law;
+    RestSim      rest;
 };

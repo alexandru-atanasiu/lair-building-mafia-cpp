@@ -44,7 +44,7 @@ struct LairObjectType
     LairObjectPart parts[kLairMaxObjectParts];
 
     // What it does, while its room works.
-    int   crewBeds = 0;             // adds to CrewCapacity
+    bool  bed = false;              // a tired man rests beside it, one at a time (rest_sim.h)
     int   crateCapacity = 0;        // adds to ExtraCrateCapacity
     int   protectedMoney = 0;       // adds to ProtectedMoney
     // How free crew use it: they stand beside it (or, a seat, on its tile) for a while.
@@ -89,7 +89,7 @@ constexpr int   kLairRoomBuilders   = 3;
 constexpr int   kLairDoorCost       = 100;
 constexpr float kLairDoorSeconds    = 3.0f;
 constexpr float kLairRefundFraction = 0.5f; // of the cost, for deleting something built; cancelling a job refunds it all
-constexpr int   kLairBaseCrewCapacity = 6;  // a new game's men sleep on the floor; anyone more needs a bunk
+constexpr int   kCrewLimit          = 6;    // the most men you can have, boss included: see CrewCapacity
 constexpr int   kLairFirstJobId     = 1000000; // far from anyone else's CrewMember::jobId
 
 // ---- State ----
@@ -227,7 +227,8 @@ LairEdge MakeLairEdge(const TileCoord& tile, EdgeSide side);
 // The two tiles an edge lies between.
 void GetLairEdgeTiles(const LairEdge& edge, TileCoord& a, TileCoord& b);
 
-// How many crew you can keep: kLairBaseCrewCapacity plus the beds in working rooms.
+// How many crew you can keep. The one place that decides it: kCrewLimit for now, whatever comes
+// to expand the crew goes here. Bunks have nothing to do with it (they're for rest, rest_sim.h).
 int CrewCapacity(const GameState& state);
 // Crates that fit beyond the warehouse's own space, from shelves in working storage rooms.
 int ExtraCrateCapacity(const GameState& state);

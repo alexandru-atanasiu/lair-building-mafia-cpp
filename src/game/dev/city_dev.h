@@ -19,6 +19,7 @@ struct GameState;
 //   city auto <0..5>             nobody, greedy missions, careful missions, smuggling up to booze,
 //                                smuggling with missions by free men while heat is under 50,
 //                                smuggling with contraband
+//                                Every one of them builds bunks when its men start to tire.
 std::string ExecuteCityCommand(GameState& state, std::istringstream& in);
 
 void RunCityAutoPlayer(GameState& state, int mode);

@@ -14,6 +14,7 @@ SimStep Simulation::Advance(float realSeconds)
         if (!member.away)
             UpdateCharacterMotion(member.motion, m_state.world, step.simSeconds);
 
+    m_state.rest.Tick(m_state, step); // first: a man who's just gone off work is off everyone's list below
     m_state.warehouse.Tick(m_state, step);
     m_state.lair.Tick(m_state, step);
     m_state.city.Tick(m_state, step);

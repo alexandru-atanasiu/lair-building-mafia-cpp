@@ -5,6 +5,7 @@
 #include "../camera/orbit_camera.h"
 #include "city_dev.h"
 #include "law_dev.h"
+#include "rest_dev.h"
 #include "../sim/simulation.h"
 #include "core/log.h"
 #include "render/render_device.h"
@@ -76,7 +77,7 @@ namespace
             ++(job.kind == LairJobKind::Dig ? digs : builds);
         for (const CrewMember& member : state.crew)
             workers += member.jobId >= kLairFirstJobId ? 1 : 0;
-        out << "digs=" << digs << " builds=" << builds << " workers=" << workers << " capacity=" << CrewCapacity(state)
+        out << "digs=" << digs << " builds=" << builds << " workers=" << workers << " capacity=" << CrewCapacity(state) << " beds=" << CountBeds(state)
             << " crates=" << ExtraCrateCapacity(state) << " protected=" << ProtectedMoney(state);
         for (const LairRoom& room : state.lair.rooms)
         {
@@ -273,6 +274,7 @@ void DevDriver::EndFrame()
 //   crewjob <crew id> <n>        set a crew member's jobId: non-zero makes them busy
 //   city <what> ...              missions and markers: see city_dev.h
 //   law <what> ...               evidence, investigators, raids: see law_dev.h
+//   rest [set <id|all> <energy>] tiredness and beds: see rest_dev.h
 //   devui <0|1>                  show the dev UI
 //   debugpad <0|1>               open the DebugPad
 //   lair                         replies jobs, rooms and their status, doors, objects and what they add up to
@@ -441,6 +443,10 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
     else if (word == "law")
     {
         reply = ExecuteLawCommand(state, in);
+    }
+    else if (word == "rest")
+    {
+        reply = ExecuteRestCommand(state, in);
     }
     else if (word == "wander")
     {

@@ -325,7 +325,11 @@ void LairTools::BuildMenu(Ui& ui)
 
     // What the lair adds up to, at the right.
     char stats[96];
-    snprintf(stats, sizeof(stats), "Crew %d / %d", (int)m_state.crew.size(), CrewCapacity(m_state));
+    const int offWork = CountMenOffWork(m_state);
+    if (offWork > 0)
+        snprintf(stats, sizeof(stats), "Crew %d / %d, %d off tired   Beds %d of %d free", (int)m_state.crew.size(), CrewCapacity(m_state), offWork, CountFreeBeds(m_state), CountBeds(m_state));
+    else
+        snprintf(stats, sizeof(stats), "Crew %d / %d   Beds %d of %d free", (int)m_state.crew.size(), CrewCapacity(m_state), CountFreeBeds(m_state), CountBeds(m_state));
     char stats2[96];
     snprintf(stats2, sizeof(stats2), "Crates +%d   Safe $%lld", ExtraCrateCapacity(m_state), (long long)ProtectedMoney(m_state));
     Ui::TextStyle line;
@@ -347,7 +351,7 @@ void LairTools::BuildMenu(Ui& ui)
     case Tool::Delete: hint = "Click an object, a door or a room. Right click cancels."; break;
     }
     const float hintX = x + 6.0f;
-    const float hintW = width - hintX - 190.0f;
+    const float hintW = width - hintX - 290.0f;
     if (hintW > 60.0f)
     {
         Ui::TextStyle text;

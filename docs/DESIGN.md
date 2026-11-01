@@ -97,7 +97,7 @@ Starts as a small dug-out basement at the foot of the stairs. The rest of the le
 
 | Room | Min size | Needs | Does |
 |---|---|---|---|
-| **Bunks** | 3×3 | a bunk | each bunk houses one man; you can't keep more men than you have bunks |
+| **Bunks** | 3×3 | a bunk | tired men rest here, one to a bunk (see *Tiredness*); no effect on how many men you can have |
 | **Bar** | 3×4 | a counter | men spend off-duty time here; restores loyalty |
 | **Recreation room** | 4×4 | one of: pool table, card table, jukebox, boxing bag | restores loyalty; the boxing bag also trains muscle |
 | **Kitchen / mess** | 3×3 | a stove, a table | men who eat stay loyal longer; feeds N men per stove |
@@ -170,9 +170,15 @@ for the emergencies below.
 
 ### Tiredness
 
-Every man gets **tired** while working. When he is worn out he leaves his job by himself to sleep in his bunk, eat and
-drink, then goes back to the queue. A lair short of bunks, food or a bar means tired men working worse and losing
-loyalty.
+Every man gets **tired**, slowly when idle and faster while working (a mission counts as work). When he is worn out he
+leaves his job by himself and sleeps in a free bunk, then goes back to the queue. Beds are reserved one man at a time, and
+men take turns when they are short. With no free bunk he stands idle and recovers very slowly. In an emergency, everyone
+gets up.
+
+**Built:** the meter, leaving work, bunks, taking turns, slow recovery without a bunk, tired men not being picked for
+missions or work, and getting up for a raid. **Not built:** eating and drinking when tired, the bar or a kitchen helping,
+tired men working *worse* (a man works normally until he stops), loyalty loss, and a lying-down animation (he stands by
+the bunk). The boss doesn't tire. Numbers are in `rest_sim.h`.
 
 ## Raids
 
@@ -243,7 +249,7 @@ At high vendetta a rival family sends a crew of gunmen against the warehouse, pl
   killed, the game is lost. He takes no jobs, and when the lair falls he flees by himself (see *Busts and moving house*).
 - **Made men** — a fixed number of slots, starting at 2 and rising as the empire grows. They lead high-profile missions
   (robberies, hits, racket takeovers) and campaigns. They cannot be fired, only lost.
-- **Associates** — the rank and file, as many as you have bunks. Hired on the city map through a **Recruit** mission (it
+- **Associates** — the rank and file, up to a fixed limit for now (6 men, boss included; a later system will expand it). Hired on the city map through a **Recruit** mission (it
   costs money and a little heat, and turns up 1–3 candidates to choose from). They run most missions and do the lair's
   work (see *Jobs*).
 
@@ -255,7 +261,7 @@ Every man has three stats (1–5) and a loyalty bar:
 
 Missions use the stats of the men sent. Men gain experience on missions and raise a stat now and then.
 
-**Loyalty** drops with missed wages, failed missions, nights without a bunk, and time without rest; it rises in the bar,
+**Loyalty** drops with missed wages, failed missions, and time without rest; it rises in the bar,
 the recreation room and the mess. A man at zero loyalty may walk out — or turn informant, which raises heat sharply.
 
 **Promotion.** When a made-man slot is free, an associate with enough completed missions and high loyalty can be

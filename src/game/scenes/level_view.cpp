@@ -28,7 +28,7 @@ namespace
     constexpr float kGroundShowsAboveY = -2.2f;
     constexpr float kLairShowsBelowY   = -2.7f;
 
-    // The tag over someone of the law's, so he can't be missed among the crew.
+    // The tag over someone of the law's, so he can't be missed among the crew, or over a man off work.
     constexpr float kTagHeight = 2.15f; // metres above the feet
     constexpr float kTagText   = 13.0f;
 }
@@ -38,7 +38,7 @@ bool LevelView::IsShownHere(const CharacterMotion& motion) const
     return m_level == WorldLevel::Ground ? motion.position.y > kGroundShowsAboveY : motion.position.y < kLairShowsBelowY;
 }
 
-void LevelView::DrawLawTags(const SceneFrame& frame) const
+void LevelView::DrawTags(const SceneFrame& frame) const
 {
     Ui& ui = frame.ui;
     const float scale = ui.GetScale();
@@ -74,6 +74,15 @@ void LevelView::DrawLawTags(const SceneFrame& frame) const
         for (const CrewMember& member : m_services.state.crew)
             if (member.role == CrewRole::Boss && !member.away && IsShownHere(member.motion))
                 tag(member.motion, "To the bolt-hole!", { 1.0f, 0.45f, 0.35f, 1.0f });
+    for (const CrewMember& member : m_services.state.crew)
+    {
+        if (member.jobId != kRestJobId || member.away || !IsShownHere(member.motion))
+            continue;
+        if (member.inBed)
+            tag(member.motion, "Resting", { 0.55f, 0.82f, 0.68f, 1.0f });
+        else
+            tag(member.motion, "Tired", { 0.85f, 0.65f, 0.55f, 1.0f });
+    }
 }
 
 void LevelView::Update(const SceneFrame& frame)
@@ -86,7 +95,7 @@ void LevelView::Update(const SceneFrame& frame)
     for (const LawAgent& agent : m_services.state.law.agents)
         if (IsShownHere(agent.motion))
             m_services.characters.Animate(agent.id, agent.motion, frame.sim.simSeconds);
-    DrawLawTags(frame);
+    DrawTags(frame);
 }
 
 void LevelView::DrawLevel(MeshRenderer::Scope& meshes) const
