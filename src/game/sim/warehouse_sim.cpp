@@ -211,6 +211,91 @@ namespace
         return sim.job == TruckJob::Deliver ? (int)sim.carriers.size() : 0;
     }
 
+    // ---- The queue
+
+    int TruckJobHours(TruckJob job, int kind)
+    {
+        return job == TruckJob::Deliver ? GetShipmentKind(kind).hours : kPickupHours;
+    }
+
+    const char* PluralHours(int count)
+    {
+        return count == 1 ? "hour" : "hours";
+    }
+
+    // Crates in the warehouse once the truck and the whole queue are done, as things stand.
+    int ProjectCrates(const GameState& state)
+    {
+        const WarehouseSim& sim = state.warehouse;
+        int holding = 0;
+        for (const CrateCarrier& carrier : sim.carriers)
+            if (carrier.IsHolding())
+                ++holding;
+
+        int crates = state.crates;
+        if (sim.job == TruckJob::Deliver)
+            crates += (int)sim.cargo.size() + holding;
+        else if (sim.phase >= TruckPhase::OnItsWay && sim.phase <= TruckPhase::Working)
+            crates -= std::min(crates, std::max(kTruckCapacity - (int)sim.cargo.size() - holding, 0));
+
+        for (const QueuedTruck& truck : sim.queue)
+        {
+            if (truck.job == TruckJob::Deliver)
+                crates += GetShipmentKind(truck.kind).crates;
+            else
+                crates -= std::min(crates, kTruckCapacity);
+        }
+        return crates;
+    }
+
+    void SendTruck(WarehouseSim& sim, TruckJob job, int kind)
+    {
+        sim.job          = job;
+        sim.hold         = TruckHold::None;
+        sim.phaseMinutes = (float)TruckJobHours(job, kind) * 60.0f;
+        sim.cargo.clear();
+        if (job == TruckJob::Deliver)
+        {
+            sim.orderKind = kind;
+            sim.cargo.assign((size_t)GetShipmentKind(kind).crates, (uint8_t)kind);
+        }
+        SetPhase(sim, TruckPhase::OnItsWay);
+    }
+
+    // The truck has gone: the next in the queue sets off. A Ship out with nothing left to sell is
+    // dropped rather than sending a truck for nothing.
+    void StartNextQueuedTruck(GameState& state)
+    {
+        WarehouseSim& sim = state.warehouse;
+        while (!sim.queue.empty())
+        {
+            const QueuedTruck next = sim.queue.front();
+            sim.queue.erase(sim.queue.begin());
+
+            char text[140];
+            const int hours = TruckJobHours(next.job, next.kind);
+            if (next.job == TruckJob::Collect)
+            {
+                if (state.crates <= 0)
+                {
+                    state.PostEvent(GameEventKind::Info, "A queued ship-out was dropped: no crates left to sell.");
+                    continue;
+                }
+                const int count = ShipOutCrateCount(state);
+                snprintf(text, sizeof(text), "The next truck set off to ship out %d %s, worth %s: due in %d %s.", count, PluralCrates(count),
+                         WarehouseMoneyText(ShipOutValue(state)).c_str(), hours, PluralHours(hours));
+            }
+            else
+            {
+                const ShipmentKind& kind = GetShipmentKind(next.kind);
+                snprintf(text, sizeof(text), "The next truck set off with %d crates of %s: due in %d %s.", kind.crates, kind.lowerName, hours, PluralHours(hours));
+            }
+            SendTruck(sim, next.job, next.kind);
+            state.PostEvent(GameEventKind::Info, text);
+            return;
+        }
+    }
+
     // ---- Carriers
 
     bool SendTo(CrewMember& member, CrateCarrier& carrier, const GameState& state, const TileCoord& goal)
@@ -668,8 +753,8 @@ bool CanOrderShipment(const GameState& state, int kind, const char** why)
             *why = reason;
         return false;
     };
-    if (state.warehouse.phase != TruckPhase::Gone)
-        return refuse("The truck is busy.");
+    if ((int)state.warehouse.queue.size() >= kMaxQueuedTrucks)
+        return refuse("The truck queue is full.");
     if (state.money < GetShipmentKind(kind).cost)
         return refuse("Not enough money.");
     return true;
@@ -685,11 +770,28 @@ bool CanShipOut(const GameState& state, const char** why)
     const WarehouseSim& sim = state.warehouse;
     if (sim.phase == TruckPhase::Working && sim.hold == TruckHold::NoRoom)
         return true; // what's on the truck goes straight on to the buyer, with some of the warehouse
-    if (sim.phase != TruckPhase::Gone)
-        return refuse("The truck is busy.");
-    if (state.crates <= 0)
+    if ((int)sim.queue.size() >= kMaxQueuedTrucks)
+        return refuse("The truck queue is full.");
+    if (ProjectCrates(state) <= 0)
         return refuse("No crates to ship.");
     return true;
+}
+
+bool ShipOutWouldQueue(const GameState& state)
+{
+    const WarehouseSim& sim = state.warehouse;
+    return sim.phase != TruckPhase::Gone && !(sim.phase == TruckPhase::Working && sim.hold == TruckHold::NoRoom);
+}
+
+int GetTrucksAhead(const GameState& state)
+{
+    const WarehouseSim& sim = state.warehouse;
+    return (sim.phase != TruckPhase::Gone ? 1 : 0) + (int)sim.queue.size();
+}
+
+int GetCrateRoomAfterQueue(const GameState& state)
+{
+    return std::max(CrateCapacity(state) - ProjectCrates(state), 0);
 }
 
 int ShipOutCrateCount(const GameState& state)
@@ -731,16 +833,21 @@ bool OrderShipment(GameState& state, int kind)
     WarehouseSim&       sim      = state.warehouse;
     const ShipmentKind& shipment = GetShipmentKind(kind);
     state.money -= shipment.cost;
-    sim.job          = TruckJob::Deliver;
-    sim.orderKind    = kind;
-    sim.hold         = TruckHold::None;
-    sim.phaseMinutes = (float)shipment.hours * 60.0f;
-    sim.cargo.assign((size_t)shipment.crates, (uint8_t)kind);
-    SetPhase(sim, TruckPhase::OnItsWay);
 
     char text[120];
-    snprintf(text, sizeof(text), "Ordered %d crates of %s for %s: the truck is due in %d %s.", shipment.crates, shipment.lowerName,
-             WarehouseMoneyText(shipment.cost).c_str(), shipment.hours, shipment.hours == 1 ? "hour" : "hours");
+    if (sim.phase == TruckPhase::Gone)
+    {
+        SendTruck(sim, TruckJob::Deliver, kind);
+        snprintf(text, sizeof(text), "Ordered %d crates of %s for %s: the truck is due in %d %s.", shipment.crates, shipment.lowerName,
+                 WarehouseMoneyText(shipment.cost).c_str(), shipment.hours, PluralHours(shipment.hours));
+    }
+    else
+    {
+        const int ahead = GetTrucksAhead(state);
+        sim.queue.push_back({ TruckJob::Deliver, kind, shipment.cost });
+        snprintf(text, sizeof(text), "Ordered %d crates of %s for %s: queued, %d ahead.", shipment.crates, shipment.lowerName,
+                 WarehouseMoneyText(shipment.cost).c_str(), ahead);
+    }
     state.PostEvent(GameEventKind::Info, text);
     return true;
 }
@@ -751,19 +858,45 @@ bool OrderShipOut(GameState& state)
         return false;
 
     WarehouseSim& sim = state.warehouse;
-    sim.job  = TruckJob::Collect;
-    sim.hold = TruckHold::None;
-    if (sim.phase == TruckPhase::Working)
+    if (sim.phase == TruckPhase::Working && sim.hold == TruckHold::NoRoom)
     {
         // Stuck with cargo and no room: it stays aboard and goes to the buyer with the rest.
+        sim.job  = TruckJob::Collect;
+        sim.hold = TruckHold::None;
         state.PostEvent(GameEventKind::Info, "The truck will take what it's holding, and crates from the racks, to the buyer.");
         return true;
     }
 
-    sim.phaseMinutes = (float)kPickupHours * 60.0f;
-    sim.cargo.clear();
-    SetPhase(sim, TruckPhase::OnItsWay);
-    state.PostEvent(GameEventKind::Info, "Sent for the truck to ship crates out.");
+    if (sim.phase == TruckPhase::Gone)
+    {
+        SendTruck(sim, TruckJob::Collect, 0);
+        state.PostEvent(GameEventKind::Info, "Sent for the truck to ship crates out.");
+        return true;
+    }
+
+    char text[120];
+    snprintf(text, sizeof(text), "Ship-out queued, %d ahead: it takes what's there when it loads.", GetTrucksAhead(state));
+    sim.queue.push_back({ TruckJob::Collect, 0, 0 });
+    state.PostEvent(GameEventKind::Info, text);
+    return true;
+}
+
+bool CancelQueuedTruck(GameState& state, int index)
+{
+    WarehouseSim& sim = state.warehouse;
+    if (index < 0 || index >= (int)sim.queue.size())
+        return false;
+
+    const QueuedTruck truck = sim.queue[(size_t)index];
+    sim.queue.erase(sim.queue.begin() + index);
+    state.money += truck.paid;
+
+    char text[120];
+    if (truck.job == TruckJob::Deliver)
+        snprintf(text, sizeof(text), "Cancelled the %s order: %s back.", GetShipmentKind(truck.kind).lowerName, WarehouseMoneyText(truck.paid).c_str());
+    else
+        snprintf(text, sizeof(text), "Cancelled the queued ship-out.");
+    state.PostEvent(GameEventKind::Info, text);
     return true;
 }
 
@@ -778,6 +911,7 @@ int AbandonWarehouse(GameState& state)
     const int   lost   = (int)sim.stored.size() + (docked ? (int)sim.cargo.size() : 0);
     sim.stored.clear();
     sim.cargo.clear();
+    sim.queue.clear();
     state.crates = 0;
 
     SetDoorEdges(state, false);
@@ -787,10 +921,29 @@ int AbandonWarehouse(GameState& state)
     return lost;
 }
 
+const char* GetQueuedTruckName(const QueuedTruck& truck)
+{
+    return truck.job == TruckJob::Deliver ? GetShipmentKind(truck.kind).name : "Ship out";
+}
+
+std::string DescribeQueuedTruck(const QueuedTruck& truck)
+{
+    const int hours = TruckJobHours(truck.job, truck.kind);
+    char text[96];
+    if (truck.job == TruckJob::Deliver)
+        snprintf(text, sizeof(text), "%d crates, %d %s, %s paid", GetShipmentKind(truck.kind).crates, hours, PluralHours(hours), WarehouseMoneyText(truck.paid).c_str());
+    else
+        snprintf(text, sizeof(text), "Up to %d crates, counted when it loads, %d %s", kTruckCapacity, hours, PluralHours(hours));
+    return text;
+}
+
 std::string DescribeTruck(const GameState& state)
 {
     const WarehouseSim& sim = state.warehouse;
-    char text[160];
+    char text[200];
+    // A stuck truck holds up everything behind it.
+    const std::string behind = sim.queue.empty() ? std::string()
+                             : " " + std::to_string(sim.queue.size()) + (sim.queue.size() == 1 ? " order waits" : " orders wait") + " behind it.";
     switch (sim.phase)
     {
     case TruckPhase::Gone:
@@ -810,11 +963,11 @@ std::string DescribeTruck(const GameState& state)
         return "Docked: opening up.";
     case TruckPhase::Working:
         if (sim.hold == TruckHold::NoCrew)
-            return "Waiting: nobody free to carry crates.";
+            return "Waiting: nobody free to carry crates." + behind;
         if (sim.hold == TruckHold::NoRoom)
         {
-            snprintf(text, sizeof(text), "Waiting: warehouse full, %d %s still on the truck. Ship out, or add storage.", (int)sim.cargo.size(),
-                     PluralCrates((int)sim.cargo.size()));
+            snprintf(text, sizeof(text), "Waiting: warehouse full, %d %s still on the truck. Ship out, or add storage.%s", (int)sim.cargo.size(),
+                     PluralCrates((int)sim.cargo.size()), behind.c_str());
             return text;
         }
         if (sim.job == TruckJob::Deliver)
@@ -872,6 +1025,12 @@ std::string DescribeWarehouseForDev(const GameState& state)
     out += " truckjob=" + std::string(sim.job == TruckJob::Deliver ? "deliver" : "collect");
     out += " hold=" + std::string(kHolds[(int)sim.hold]);
     out += " cargo=" + std::to_string(sim.cargo.size());
+    out += " truckminutes=" + std::to_string((int)std::ceil(sim.phase == TruckPhase::OnItsWay ? sim.phaseMinutes : 0.0f));
+    out += " queue=";
+    if (sim.queue.empty())
+        out += "none";
+    for (size_t i = 0; i < sim.queue.size(); ++i)
+        out += (i > 0 ? "," : "") + std::string(sim.queue[i].job == TruckJob::Deliver ? GetShipmentKind(sim.queue[i].kind).devName : "shipout");
     out += " carriers=";
     bool first = true;
     for (const CrateCarrier& carrier : sim.carriers)
@@ -889,6 +1048,26 @@ std::string DescribeWarehouseForDev(const GameState& state)
     for (const PendingPayment& payment : sim.payments)
         due += payment.amount;
     out += " paymentsdue=" + std::to_string(due);
+    return out;
+}
+
+std::string DescribeQueueForDev(const GameState& state)
+{
+    const WarehouseSim& sim = state.warehouse;
+    std::string out = "length=" + std::to_string(sim.queue.size()) + " max=" + std::to_string(kMaxQueuedTrucks) + " ahead=" + std::to_string(GetTrucksAhead(state));
+    for (size_t i = 0; i < sim.queue.size(); ++i)
+    {
+        const QueuedTruck& truck = sim.queue[i];
+        const bool deliver = truck.job == TruckJob::Deliver;
+        out += " q" + std::to_string(i + 1) + "=" + (deliver ? GetShipmentKind(truck.kind).devName : "shipout") + ":" +
+               std::to_string(deliver ? GetShipmentKind(truck.kind).crates : 0) + ":" + std::to_string(TruckJobHours(truck.job, truck.kind)) + ":" + std::to_string(truck.paid);
+    }
+    // The racks oldest first, and the newest news last, as it has spaces in it.
+    out += " stored=";
+    for (const StoredCrate& crate : sim.stored)
+        out += std::string(GetShipmentKind(crate.kind).devName).substr(0, 1);
+    if (!state.events.empty())
+        out += " news=" + state.events.back().text;
     return out;
 }
 
@@ -956,6 +1135,7 @@ void WarehouseSim::Tick(GameState& state, const SimStep& step)
         {
             SetPhase(*this, TruckPhase::Gone);
             hold = TruckHold::None;
+            StartNextQueuedTruck(state);
         }
         break;
     }

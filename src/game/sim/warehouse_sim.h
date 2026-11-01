@@ -13,6 +13,9 @@ struct SimStep;
 // GameState holds one of these and Simulation::Advance calls Tick on every step of the clock
 // (never while paused). The counts and prices are constants at the top of warehouse_sim.cpp.
 //
+// There's one truck. Orders placed while it's busy wait in WarehouseSim::queue, first in, first
+// out, and each sets off when the one before it has left.
+//
 // To read from elsewhere (law_sim): GameState::crates is how many crates are stored,
 // WarehouseSim::stored says where each of them is, and truck/cargo say what's in the yard. To take
 // crates away, lower GameState::crates: the newest go first and Tick keeps `stored` in step.
@@ -98,6 +101,15 @@ struct PendingPayment
     float   minutesLeft = 0.0f;
 };
 
+// An order waiting for the truck. Its hours only start counting when it sets off.
+struct QueuedTruck
+{
+    TruckJob job  = TruckJob::Deliver;
+    int      kind = 0; // what a Deliver job brings
+    int64_t  paid = 0; // handed back if it's cancelled; a Collect job costs nothing
+};
+constexpr int kMaxQueuedTrucks = 5; // orders waiting, not counting the truck that's out
+
 struct WarehouseSim
 {
     void Tick(GameState& state, const SimStep& step);
@@ -109,6 +121,8 @@ struct WarehouseSim
     float      phaseMinutes = 0.0f; // OnItsWay: game minutes left
     float      phaseSeconds = 0.0f; // sim seconds in this phase
     int        cargoAtDock = 0;     // cargo when it docked, for progress
+
+    std::vector<QueuedTruck> queue; // next first. Always empty while phase is Gone
 
     // The truck, in the world. Only there while phase isn't Gone or OnItsWay.
     Vec3  truckPosition;
@@ -134,24 +148,40 @@ int CarriersWanted(const GameState& state);
 // Crates that fit: the racks plus ExtraCrateCapacity.
 int CrateCapacity(const GameState& state);
 
-// True when a truck can be ordered now. Otherwise `why` says what's stopping it.
+// True when a truck can be ordered now, at once or into the queue. Otherwise `why` says what's
+// stopping it.
 bool CanOrderShipment(const GameState& state, int kind, const char** why = nullptr);
 bool CanShipOut(const GameState& state, const char** why = nullptr);
+// True if a Ship out now would wait its turn, rather than sending the free truck or turning a stuck
+// one round. A queued one takes what's there when it loads, so don't promise it the numbers below.
+bool    ShipOutWouldQueue(const GameState& state);
+// Orders a new one would wait behind, counting the truck that's out.
+int     GetTrucksAhead(const GameState& state);
+// Racks and shelves left once everything already ordered has come and gone.
+int     GetCrateRoomAfterQueue(const GameState& state);
 // How many crates a Ship out would take now, and what they'd pay.
 int     ShipOutCrateCount(const GameState& state);
 int64_t ShipOutValue(const GameState& state);
-bool    OrderShipment(GameState& state, int kind); // pays and sends for the truck
-bool    OrderShipOut(GameState& state);            // sends for the truck, or turns a stuck one round
+bool    OrderShipment(GameState& state, int kind); // pays, and sends for the truck or queues
+bool    OrderShipOut(GameState& state);            // sends for the truck, queues, or turns a stuck one round
+bool    CancelQueuedTruck(GameState& state, int index); // takes it off the queue, with its money back
 
 // The family has left in a hurry: the truck is gone, and crates with it, racks and truck both.
-// Money already due still comes in. Returns the crates lost.
+// Queued orders go too, unrefunded, like a truck already on its way. Money already due still comes
+// in. Returns the crates lost; queued crates never got here, so they aren't among them.
 int AbandonWarehouse(GameState& state);
 
 // "$1,200"
 std::string WarehouseMoneyText(int64_t money);
 // One line for the panel: "On its way: 2 hours", "Unloading: 3 of 8 crates off", ...
 std::string DescribeTruck(const GameState& state);
+// "Booze" or "Ship out".
+const char* GetQueuedTruckName(const QueuedTruck& truck);
+// "8 crates, 1 hour, $2,400 paid": what it brings and how long it takes once it sets off.
+std::string DescribeQueuedTruck(const QueuedTruck& truck);
 // 0..1 through what the truck is doing, for a progress bar.
 float       GetTruckProgress(const GameState& state);
 // For the dev driver's state command.
 std::string DescribeWarehouseForDev(const GameState& state);
+// For the dev driver's queue command.
+std::string DescribeQueueForDev(const GameState& state);
