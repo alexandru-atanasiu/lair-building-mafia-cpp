@@ -161,7 +161,8 @@ std::string ExecuteCityCommand(GameState& state, std::istringstream& in)
 namespace
 {
     // Plays the warehouse: sells when it holds a load, buys the dearest kind it can afford
-    // (contraband only if `contraband`, as it brings the most heat).
+    // (contraband only if `contraband`, as it brings the most heat). It only orders when the truck is
+    // free and never queues, so the balance numbers measured with it don't depend on the queue.
     void RunSmuggler(GameState& state, bool contraband)
     {
         if (state.warehouse.phase != TruckPhase::Gone)

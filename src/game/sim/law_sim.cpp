@@ -599,7 +599,16 @@ void LawSim::MoveHouse(GameState& state)
     const int64_t moneyLost = (int64_t)std::llround((float)(before - safe) * kRaidLooseMoneyLoss + (float)safe * kRaidVaultMoneyLoss);
     state.money -= moneyLost;
 
-    // The crates, and any truck: crates on it go too. Sales already on their way still pay.
+    // The crates, and any truck: crates on it go too. Sales already on their way still pay. Orders
+    // waiting for the truck are lost like one on its way, with what was paid for them.
+    int     ordersLost = 0;
+    int64_t ordersPaid = 0;
+    for (const QueuedTruck& truck : state.warehouse.queue)
+    {
+        if (truck.job == TruckJob::Deliver)
+            ++ordersLost;
+        ordersPaid += truck.paid;
+    }
     const int cratesLost = AbandonWarehouse(state);
 
     // Half the objects, at random. Things not yet built stay as jobs.
@@ -678,6 +687,11 @@ void LawSim::MoveHouse(GameState& state)
                  (int)(kRaidLooseMoneyLoss * 100.0f + 0.5f));
     report.lines.push_back(line);
     report.lines.push_back(cratesLost > 0 ? "Crates: all " + std::to_string(cratesLost) + " lost." : "Crates: none to lose.");
+    if (ordersLost > 0)
+    {
+        snprintf(line, sizeof(line), "Orders: %d in the queue called off, and the %s paid for them is gone.", ordersLost, WarehouseMoneyText(ordersPaid).c_str());
+        report.lines.push_back(line);
+    }
     if (objectsLost > 0)
     {
         std::sort(lostNames.begin(), lostNames.end());

@@ -485,14 +485,35 @@ bool DevDriver::Execute(const std::string& text, std::string& reply)
         const char* why = "";
         if (!CanOrderShipment(state, kind, &why))
             return fail(why);
+        const int ahead = GetTrucksAhead(state);
         OrderShipment(state, kind);
+        reply = "ok ahead=" + std::to_string(ahead);
+    }
+    else if (word == "queue")
+    {
+        std::string what;
+        in >> what;
+        if (what == "cancel")
+        {
+            int index = 0;
+            in >> index;
+            if (!CancelQueuedTruck(state, index - 1))
+                return fail("no such queued order: they count from 1");
+        }
+        else if (!what.empty())
+        {
+            return fail("queue, or queue cancel <n>");
+        }
+        reply = "ok " + DescribeQueueForDev(state);
     }
     else if (word == "shipout")
     {
         const char* why = "";
         if (!CanShipOut(state, &why))
             return fail(why);
+        const int ahead = ShipOutWouldQueue(state) ? GetTrucksAhead(state) : 0;
         OrderShipOut(state);
+        reply = "ok ahead=" + std::to_string(ahead);
     }
     else if (word == "crates")
     {
