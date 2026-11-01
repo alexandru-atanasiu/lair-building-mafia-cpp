@@ -634,9 +634,9 @@ void CitySim::TickHeat(GameState& state, const SimStep& step)
     }
 }
 
-bool CitySim::IsAvailable(const GameState&, const CrewMember& member) const
+bool CitySim::IsAvailable(const GameState& state, const CrewMember& member) const
 {
-    if (member.role != CrewRole::Soldier || member.away)
+    if (member.role != CrewRole::Soldier || member.away || !IsFitForWork(state, member))
         return false;
     return FindMissionOf(member.id) == nullptr && FindOut(member.id) == nullptr;
 }
@@ -649,6 +649,8 @@ CrewStatus CitySim::GetCrewStatus(const CrewMember& member) const
         return entry->arrested ? CrewStatus::Arrested : CrewStatus::Wounded;
     if (FindMissionOf(member.id))
         return CrewStatus::OnMission;
+    if (member.jobId == kRestJobId)
+        return member.restBed != 0 ? CrewStatus::Resting : CrewStatus::Tired;
     return member.jobId != 0 ? CrewStatus::Working : CrewStatus::Free;
 }
 
@@ -760,7 +762,7 @@ const char* CitySim::WhyNotGo(const GameState& state, const MissionDef& def, con
 const char* CitySim::WhyNotHire(const GameState& state, const MissionDef& def) const
 {
     if ((int)state.crew.size() >= CrewCapacity(state))
-        return "No free bunk: build Bunks in the lair";
+        return "The crew is full";
     if (state.money < def.investment)
         return "Not enough money";
     return nullptr;

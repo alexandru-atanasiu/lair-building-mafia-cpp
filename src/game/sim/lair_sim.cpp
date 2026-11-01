@@ -244,6 +244,12 @@ namespace
         return !member.away && member.jobId == 0 && member.role != CrewRole::Boss;
     }
 
+    // Who's free and fit for it.
+    bool CanTakeWork(const GameState& state, const CrewMember& member)
+    {
+        return IsFreeForWork(member) && IsFitForWork(state, member);
+    }
+
     bool CanStartJob(const GameState& state, const LairJob& job)
     {
         return CountWorkers(state, job.id) < job.maxWorkers;
@@ -299,7 +305,7 @@ namespace
         std::vector<FreeWorker> workers;
         for (CrewMember& member : state.crew)
         {
-            if (!IsFreeForWork(member))
+            if (!CanTakeWork(state, member))
                 continue;
             if (forTruck > 0)
             {
@@ -509,8 +515,8 @@ namespace
                     SendCharacterTo(member.motion, state.world, free);
                 continue;
             }
-            if (member.jobId != 0)
-                continue;
+            if (member.jobId != 0 && member.jobId != kRestJobId)
+                continue; // a tired man standing about moves aside too
 
             const LairRoom* room = FindLairRoomAt(state, tile);
             if (!room || room->built)
@@ -732,8 +738,8 @@ namespace
 
 void LairSim::Tick(GameState& state, const SimStep& step)
 {
-    // Someone taken for other work, or gone: what he meant to do here is off, and leaves his spot
-    // for others. A job he left stays in the queue with its progress.
+    // Someone taken for other work, off to rest, or gone: what he meant to do here is off, and
+    // leaves his spot for others. A job he left stays in the queue with its progress.
     for (const CrewMember& member : state.crew)
     {
         if (member.away || (member.jobId != 0 && member.jobId < kLairFirstJobId))

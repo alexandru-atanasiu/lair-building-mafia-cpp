@@ -62,6 +62,13 @@ namespace
     }
 
     // "M" and five pips: returns the width taken.
+    // A man's energy, as a bar: green, then amber, then red when he's too tired to work.
+    void DrawEnergyBar(Ui& ui, const UiRect& r, float energy)
+    {
+        const Color color = energy < kTiredEnergy ? kBad : energy < 50.0f ? kAmber : kGood;
+        ui.ProgressBar(r, energy / kEnergyFull, color);
+    }
+
     float DrawStatPips(Ui& ui, Vec2 p, const char* label, int value, bool highlight)
     {
         Ui::TextStyle text;
@@ -470,6 +477,16 @@ void CityScene::DrawCrewPanel(const SceneFrame& frame)
             tip          = "Arrested: back when he makes bail.";
             break;
         }
+        case CrewStatus::Tired:
+            statusText   = "Tired, no bed";
+            status.color = kBad;
+            tip          = "Off work: no free bed, so he's hardly recovering. Build Bunks in the lair.";
+            break;
+        case CrewStatus::Resting:
+            statusText   = member.inBed ? "Resting" : "Going to bed";
+            status.color = { 0.55f, 0.82f, 0.68f, 1.0f };
+            tip          = "Off work until he's rested.";
+            break;
         }
         ui.Label({ row.x + row.w - 6.0f, y + 6.0f }, statusText, status);
 
@@ -478,10 +495,17 @@ void CityScene::DrawCrewPanel(const SceneFrame& frame)
         pipX += DrawStatPips(ui, { pipX, y + 29.0f }, "B", member.brains, false) + 9.0f;
         DrawStatPips(ui, { pipX, y + 29.0f }, "N", member.nerve, false);
 
+        // The boss takes no jobs and doesn't tire.
+        if (member.role != CrewRole::Boss)
+            DrawEnergyBar(ui, { textX, y + 46.0f, row.x + row.w - 6.0f - textX, 5.0f }, member.energy);
+
         if (ui.IsHovered(row))
         {
-            char text[200];
-            snprintf(text, sizeof(text), "%s\nMuscle %d, Brains %d, Nerve %d%s%s", member.name.c_str(), member.muscle, member.brains, member.nerve, tip.empty() ? "" : "\n", tip.c_str());
+            char energy[64] = "";
+            if (member.role != CrewRole::Boss)
+                snprintf(energy, sizeof(energy), "\nEnergy %d%%. Too tired to work below %d%%.", (int)std::lround(member.energy), (int)kTiredEnergy);
+            char text[280];
+            snprintf(text, sizeof(text), "%s\nMuscle %d, Brains %d, Nerve %d%s%s%s", member.name.c_str(), member.muscle, member.brains, member.nerve, energy, tip.empty() ? "" : "\n", tip.c_str());
             ui.Tooltip(text);
         }
         y += kRosterRow;
@@ -681,7 +705,7 @@ void CityScene::DrawJobPopup(const SceneFrame& frame, const UiRect& area, const 
     {
         Ui::TextStyle nobody;
         nobody.color = kDim;
-        ui.LabelIn(list, "Nobody is available.", nobody);
+        ui.LabelIn(list, CountMenOffWork(m_state) > 0 ? "Nobody is available: the others are tired." : "Nobody is available.", nobody);
     }
     for (int i = m_popupScroll; i < std::min((int)candidates.size(), m_popupScroll + rows); ++i)
     {
@@ -694,7 +718,8 @@ void CityScene::DrawJobPopup(const SceneFrame& frame, const UiRect& area, const 
         DrawPortrait(ui, { row.x + 4.0f, row.y + 3.0f, 31.0f, 31.0f }, member.tint);
         Ui::TextStyle name;
         name.bold = true;
-        ui.Label({ row.x + 42.0f, row.y + 9.0f }, member.name, name);
+        ui.Label({ row.x + 42.0f, row.y + 7.0f }, member.name, name);
+        DrawEnergyBar(ui, { row.x + 42.0f, row.y + 28.0f, 70.0f, 4.0f }, member.energy);
         Ui::TextStyle status;
         status.size  = 13.0f;
         status.color = member.jobId != 0 ? kAmber : kGood;
@@ -791,7 +816,7 @@ void CityScene::DrawHirePopup(Ui& ui, const UiRect& area, const CityMarker& mark
     line.size  = 14.0f;
     line.color = kDim;
     char terms[96];
-    snprintf(terms, sizeof(terms), "He costs %s to bring in. The lair sleeps %d, and you have %d men.", MoneyText(def.investment).c_str(), CrewCapacity(m_state), (int)m_state.crew.size());
+    snprintf(terms, sizeof(terms), "He costs %s to bring in. You have %d of %d men.", MoneyText(def.investment).c_str(), (int)m_state.crew.size(), CrewCapacity(m_state));
     ui.Label({ x, y }, ui.WrapText(terms, w, line.size), line);
     y += 44.0f;
 

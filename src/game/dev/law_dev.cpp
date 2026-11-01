@@ -37,6 +37,14 @@ namespace
                 problems += " " + member.name + ":mission-job-without-mission";
             if (member.jobId >= kLairFirstJobId && member.away)
                 problems += " " + member.name + ":away-with-lair-job";
+            if ((member.restBed != 0 || member.inBed) && member.jobId != kRestJobId)
+                problems += " " + member.name + ":holds-a-bed-off-rest";
+            if (member.jobId == kRestJobId && (member.away || member.role == CrewRole::Boss))
+                problems += " " + member.name + ":resting-away-or-boss";
+            if (member.restBed != 0)
+                for (const CrewMember& other : state.crew)
+                    if (other.id != member.id && other.restBed == member.restBed)
+                        problems += " " + member.name + ":shares-a-bed";
             int carrying = 0;
             for (const CrateCarrier& carrier : state.warehouse.carriers)
                 carrying += carrier.crewId == member.id ? 1 : 0;

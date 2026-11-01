@@ -119,6 +119,8 @@ enum class CrewStatus
     OnMission,
     Wounded,
     Arrested,
+    Tired,   // off work with no bed to go to
+    Resting, // has a bed: on his way to it, or in it
 };
 
 // A mission decided: the scene shows these as cards; they also go to the news.
@@ -155,7 +157,7 @@ struct CitySim
     void Init(GameState& state);
     void Tick(GameState& state, const SimStep& step);
 
-    // A man who can be picked: a soldier here, not hurt or locked up. He may be working.
+    // A man who can be picked: a soldier here, not hurt, locked up or tired. He may be working.
     bool       IsAvailable(const GameState& state, const CrewMember& member) const;
     CrewStatus GetCrewStatus(const CrewMember& member) const;
     const ActiveMission* FindMissionOf(uint32_t crewId) const;

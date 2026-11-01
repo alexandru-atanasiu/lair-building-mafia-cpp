@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Capo di Tutti Capi" (working title): an Evil Genius style lair builder about a mob family, in real 3D. Windows-only C++20 / Direct3D 11, with skeletal animation (ozz-animation, GPU skinning), instanced 3D meshes with Gouraud lighting, instanced 2D sprites, game UI with baked bitmap fonts, and developer tooling built on Dear ImGui. No CMake/MSBuild: everything is driven by batch scripts that call `cl`, `link` and `fxc` directly. The engine parts were ported from an earlier in-house project. Tentative design: `docs/DESIGN.md` (its "As built" section describes an earlier C# version and is only background).
 
-Three views share one simulation and one clock: the **warehouse** (ground level, 3D), the **lair** (underground level, 3D) and the **city** (2D map). They play as one loop: buy shipments and carry them in through the warehouse, sell them on, send men on city missions, and spend the money on the lair, whose bunks and shelves in turn let you hire more men and store more crates. Heat rises from both, and high heat brings the law: investigators who report evidence, then raids; the family escapes twice and the third raid ends the game. See "The loop and the crew" and "The law".
+Three views share one simulation and one clock: the **warehouse** (ground level, 3D), the **lair** (underground level, 3D) and the **city** (2D map). They play as one loop: buy shipments and carry them in through the warehouse, sell them on, send men on city missions, and spend the money on the lair, whose bunks keep tired men working and whose shelves store more crates. Heat rises from both, and high heat brings the law: investigators who report evidence, then raids; the family escapes twice and the third raid ends the game. See "The loop and the crew" and "The law".
 
 ## Commands
 
@@ -53,12 +53,13 @@ Commands (pixel coordinates are physical client pixels, top-left origin; `state`
 | `wait <seconds>`, `frames <n>` | wait (real time, frames) before the next command |
 | `screenshot <path>` | PNG of the next finished frame. Use an absolute path (`dev_client.py` makes them absolute); the game's working directory is `__generated\data` |
 | `devui 0\|1`, `debugpad 0\|1` | hide / show ImGui, close / open the DebugPad |
-| `lair` | replies `ok digs=.. builds=.. workers=.. capacity=.. crates=.. protected=.. room1=bunks:x0:z0:x1:z1:working door1=x:z:x\|z:built object1=bunk:x:z:rotation:built ...` |
+| `rest`, `rest set <crew id\|all> <energy>` | tiredness (`src/game/dev/rest_dev.h`): replies `ok beds=.. free=.. off=.. inbed=.. bed<id>=x:z:<crew id> man<id>=name:energy:status:bed ...` (status: `free working mission wounded arrested tired tobed resting boss`) |
+| `lair` | replies `ok digs=.. builds=.. workers=.. capacity=.. beds=.. crates=.. protected=.. room1=bunks:x0:z0:x1:z1:working door1=x:z:x\|z:built object1=bunk:x:z:rotation:built ...` |
 | `order cigarettes\|booze\|contraband`, `shipout` | the warehouse panel's buttons: they start the truck or join its queue; replies `ok ahead=<n>`, the orders in front |
 | `queue`, `queue cancel <n>` | the truck queue, counted from 1: `ok length=2 max=5 ahead=3 q1=booze:8:1:2400 q2=shipout:0:1:0 stored=ccbb news=...` (`name:crates:hours:paid`, each rack crate's kind by first letter, the newest news) |
 | `crates <n>`, `crewjob <crew id> <n>` | set the stored crates; set a crew member's `jobId` (non-zero makes them busy) |
 | `state` | replies `ok view=Lair money=5000 heat=0 day=1 hour=8 ... crates=0 capacity=24 truck=gone hold=none cargo=0 truckminutes=0 queue=none carriers=Sal*,Tony paymentsdue=0 ... crew1=Don Carlo:boss:under:19:24:idle:0 ...` (`*` = holding a crate; a crew entry ends in the man's `jobId`) |
-| `city markers\|crew\|missions\|totals`, `city spawn <key>`, `city go <marker> <crew ids>`, `city hire <marker>`, `city job <crew id> <jobId>`, `city results`, `city auto <0..5>` | the city map (`src/game/dev/city_dev.h`): `markers` gives each one's screen position to click; `auto` plays for tuning: 1 greedy missions, 2 careful missions, 3 smuggling up to booze, 4 smuggling plus missions by free men under heat 50, 5 smuggling with contraband |
+| `city markers\|crew\|missions\|totals`, `city spawn <key>`, `city go <marker> <crew ids>`, `city hire <marker>`, `city job <crew id> <jobId>`, `city results`, `city auto <0..6>` | the city map (`src/game/dev/city_dev.h`): `markers` gives each one's screen position to click; `auto` plays for tuning: 1 greedy missions, 2 careful missions, 3 smuggling up to booze, 4 smuggling plus missions by free men under heat 50, 5 smuggling with contraband, 6 nothing but the bunks. All of them build a Bunks room (`RunBunkBuilder`) once a man falls to 70 energy |
 | `law`, `law evidence <n>`, `law investigator [n]`, `law raid`, `law raidnow`, `law third`, `law dismiss`, `law report`, `law check`, `law log`, `law autodismiss <0\|1>`, `law turbo <n>` | the law (`src/game/dev/law_dev.h`): `law` gives evidence, raid phase, escapes, agents and the screen's button to click; `raid` starts the warning, `raidnow` skips it, `third` makes it the last one; `check` replies `err ...` if a man is stuck or owned twice, or anyone's standing in a fixture; `turbo` runs n simulation steps per frame, for tuning |
 | `city buttons` | where the open popup's main button and the result card's OK are, for clicking |
 | `quit` | close the game |
@@ -75,15 +76,37 @@ Everyone's work runs through one field, `CrewMember::jobId`, and the systems nev
 | `kWarehouseJobId` (1001, `warehouse_sim.cpp`) | carrying crates | `WarehouseSim` |
 | `kLawJobId` (1002, `law_sim.h`) | the boss, running for the bolt-hole or caught | `LawSim` |
 | `CitySim::kMissionJobId` (3095) | walking out, on a mission, wounded or arrested (by a raid too) | `CitySim` |
+| `kRestJobId` (1003, `rest_sim.h`) | off work: tired, going to a bed or in one | `RestSim` |
 | `>= kLairFirstJobId` (1,000,000) | a dig or build job, with that job's id | `LairSim` |
 
-- **Taking a man:** only one who's `away == false && jobId == 0`, setting your own value below `kLairFirstJobId`, and clearing it when done. The player may overwrite any job by sending him on a mission, so each owner checks every tick that the `jobId` is still theirs and puts the work back: a crate goes back where it came from (`ReleaseCarrier`), a lair job stays in the queue with its progress, and `LairSim::Tick` drops a taken man's claimed spot.
+- **Taking a man:** only one who's `away == false && jobId == 0` and `IsFitForWork` (see "Tiredness"), setting your own value below `kLairFirstJobId`, and clearing it when done. The player may overwrite any job by sending him on a mission, so each owner checks every tick that the `jobId` is still theirs and puts the work back: a crate goes back where it came from (`ReleaseCarrier`), a lair job stays in the queue with its progress, and `LairSim::Tick` drops a taken man's claimed spot.
 - **Who comes first:** the truck, then lair builds, then digs. `DispatchJobs` holds back `CarriersWanted(state)` free men while a truck is working. Nobody is pulled off a job for it: a man mid-dig finishes that tile. The truck only reports "nobody free" when no one's about to be.
 - **Who never works:** the boss (each system checks `CrewRole`), and anyone `away`: on a mission's car, wounded or arrested until their `CrewOut` runs out.
+- **Tiredness** overwrites a job like a mission does, so the same check puts the work back. See "Tiredness".
 - **Idling** is only `UpdateIdleCrew` in `lair_sim.cpp`, for men with `jobId == 0`; `wander 0` stops only that.
 - **Going between levels:** every walk is `SendCharacterTo`, whose path crosses the stairs at any distance and re-plans when the world's revision changes. The boss stays below.
 - **Being seen:** a view draws whoever is near its level by height, not `motion.level` (`LevelView::IsShownHere`), so someone on the stairs shows from both. A man leaving for a mission walks to the front door in the warehouse view, and his car appears on the map when the last one is out; the crew panel says "Heading out" until then.
 - **Balance:** `city auto` measures it (see the table in the dev driver section), and `python py/law_tune.py` runs the auto players fast through raids and prints when each came. The auto players only order when the truck is free, so the truck queue doesn't move these numbers. Shipments are at the top of `warehouse_sim.cpp`, missions and heat at the top of `city_sim.cpp`, the lair's prices in `lair_sim.h` and `lair_tables.cpp`, the law's at the top of `law_sim.h`.
+
+## Tiredness
+
+`sim/rest_sim.*`, every number at the top of `rest_sim.h`. Each soldier has `CrewMember::energy`, 0..100. The boss's stays full: he takes no jobs.
+
+| Doing | Energy per game hour | |
+|---|---|---|
+| Any non-zero `jobId` (lair, truck, a mission's walk, car and job) | -4 | full to `kTiredEnergy` (20) in 20 hours, about a day's shift |
+| Nothing | -1.5 | |
+| In a bed | +20 | 20 to `kRestedEnergy` (90) in 3.5 hours |
+| Off work without a bed | +2.5 | 20 to `kFitEnergy` (40) in 8 hours, and 40 is only 5 hours of work |
+| Wounded or arrested | 0 | |
+
+- **Going off work:** `RestSim::Tick` runs first in `Simulation::Advance`. A man below 20 gets `kRestJobId` over whatever he had, so the job's owner puts the work back (a crate goes back where it came from, a lair job stays in the queue with its progress). A man on a mission finishes it first.
+- **Beds** are objects with `bed` in `lair_tables.cpp`, built, in a working room. `HandOutBeds` reserves one (`CrewMember::restBed`) for the man off work longest (`tiredSince`), so men take turns. He walks to `restSpot` and `inBed` turns on there. Beds are solid and there's no lying down yet, so he stands beside it. A bed that goes or stops working puts him back in the queue.
+- **No bed:** he goes below (or stays if he's on plain lair floor), stands labelled "Tired", and goes back to work at 40, or to a bed as soon as one is free. So digging and building always finish in a new game with no bunks; news says to build Bunks, at most every `kNoBedNewsHours`.
+- **Who may work:** `IsFitForWork(state, member)`, asked by `LairSim`, `WarehouseSim::CanHire` and `CitySim::IsAvailable`. A new system that picks men must ask it too.
+- **Raids:** from the warning on, `RestSim` gets everyone up and `IsFitForWork` is true for all, so men can still carry crates out and be sent away. When the raid is over the tired ones go off work again.
+- **The law** treats a tired man off work as an idle one: seen, unless he's in a working room.
+- **Shown:** "Resting" and "Tired" tags over the man (`LevelView::DrawTags`), a bar on the city crew panel and mission popup with the number on hover, and a count in the lair's bar.
 
 ## The lair
 
@@ -91,8 +114,8 @@ Digging, rooms, doors, objects and the crew's work, on the underground level.
 
 | Where | What |
 |---|---|
-| `src/game/sim/lair_tables.cpp` | The room and object tables. **A new room or object is one entry** (plus meshes in `py/create_meshes.py` and an icon in `py/create_ui_assets.py`); no code knows their names. Effects and uses are fields: `crewBeds`, `crateCapacity`, `protectedMoney`, `useSeconds`, `seat`, `bossSeat`. |
-| `src/game/sim/lair_sim.h` | Tuning constants, state, and the API: `FindLairRoom*`, `GetLairRoomStatus`, `IsLairTileReachable`, `CrewCapacity`, `ExtraCrateCapacity` (shelves, which raise `CrateCapacity`), `ProtectedMoney`, and `Check*` / `Place*` / `Delete*`. |
+| `src/game/sim/lair_tables.cpp` | The room and object tables. **A new room or object is one entry** (plus meshes in `py/create_meshes.py` and an icon in `py/create_ui_assets.py`); no code knows their names. Effects and uses are fields: `bed`, `crateCapacity`, `protectedMoney`, `useSeconds`, `seat`, `bossSeat`. |
+| `src/game/sim/lair_sim.h` | Tuning constants, state, and the API: `FindLairRoom*`, `GetLairRoomStatus`, `IsLairTileReachable`, `ExtraCrateCapacity` (shelves, which raise `CrateCapacity`), `ProtectedMoney`, and `Check*` / `Place*` / `Delete*`. |
 | `src/game/sim/lair_build.cpp` | What may be placed or deleted, and doing it. |
 | `src/game/sim/lair_sim.cpp` | `Tick`: the job queue, workers, keeping crew out of sites, idle crew using rooms. |
 | `src/game/scenes/lair_view.*` | Drawing and the cutaway. |
@@ -132,7 +155,7 @@ The front: fixed floor plan, a truck, a buy-and-sell loop. Tuning numbers are at
 - **Going:** `StartMission` charges the investment and overwrites the man's `jobId` with `CitySim::kMissionJobId`. He walks to the warehouse's door (found in the world: a Door edge from Floor to Pavement) and turns `away` there. When all are out the car drives (`MissionPhase`), the job runs, and `Resolve` pays or punishes. Back home, `ComeBack` clears `jobId` and walks him in.
 - **Status:** `city.GetCrewStatus(member)`; wounded and arrested men stay `away` until their `CrewOut` runs out.
 - **Heat:** only through `GameState::AddHeat`. Missions add it and `CitySim::TickHeat` lowers it once a game hour. `GetHeatChancePenalty` is the only effect it has here; what the law does about heat is in "The law". The HUD warns on any rise of more than 0.5.
-- **Hiring** needs a free place: `state.crew.size() < CrewCapacity(state)`. The starting six are `kLairBaseCrewCapacity`, so a new game loses nothing, and the first hire needs a working Bunks room. The popup says so, and Recruit markers don't appear while it's full.
+- **Hiring** needs a free place: `state.crew.size() < CrewCapacity(state)`. `CrewCapacity` (`lair_build.cpp`) is the one place the limit is decided, `kCrewLimit` (6, `lair_sim.h`) for now; a system that expands the crew goes there. Bunks don't affect it. A new game starts with six men, so hiring is full. The popup says so, and no new Recruit markers appear while it's full.
 
 ## The law
 
@@ -184,7 +207,7 @@ The front: fixed floor plan, a truck, a buy-and-sell loop. Tuning numbers are at
 
 Each system lives in its own files, so parallel work doesn't collide.
 
-- **Simulation** (`sim/`, no rendering or input): `GameState` (`game_state.h`) holds money, heat, the `GameClock` (pause, speeds 1-3, a game day is 2 real minutes at 1x), the `WorldGrid`, the crew list, the news list (`PostEvent`, `events`) and a seeded `random`. It's owned by `Simulation`, which `Game` owns, outside the views, and it runs whichever view is shown. Each system has its own pair of files: `warehouse_sim.*`, `lair_sim.*`, `city_sim.*`, each with a section above, and `law_sim.*` (investigators and raids). Add data to the struct and rules to its `Tick(GameState&, const SimStep&)`. `SimStep` is 0 while paused: `simSeconds` (real time x speed) for movement, `gameMinutes` for the day clock.
+- **Simulation** (`sim/`, no rendering or input): `GameState` (`game_state.h`) holds money, heat, the `GameClock` (pause, speeds 1-3, a game day is 2 real minutes at 1x), the `WorldGrid`, the crew list, the news list (`PostEvent`, `events`) and a seeded `random`. It's owned by `Simulation`, which `Game` owns, outside the views, and it runs whichever view is shown. Each system has its own pair of files: `warehouse_sim.*`, `lair_sim.*`, `city_sim.*`, `rest_sim.*`, each with a section above, and `law_sim.*` (investigators and raids). Add data to the struct and rules to its `Tick(GameState&, const SimStep&)`. `SimStep` is 0 while paused: `simSeconds` (real time x speed) for movement, `gameMinutes` for the day clock.
 - **World** (`world/`): `WorldGrid` (`world_grid.h`) is two levels of tiles (`TileKind`: Earth, Floor, Pavement, Stairwell, Fixture; a free `room` index), walls and doors on tile edges (`GetEdge/SetEdge`), stairs (`AddStair`), `TileCenter`/`WorldToTile`, and a revision number that changes with it. World units are metres, a tile is 2 x 2, walls 2.4 high, the underground floor at y = -4. `world_path.h`: `FindTilePath` (A* over tiles and stair links, across levels), `FindWorldPath` (waypoints with corners cut), `HasClearLine`, `FindNearestWalkable`. `world_layout.cpp` is the starting layout. `WorldView` (`world_view.h`) draws a level. Dig and room rules are not here: they change tiles and edges through this API.
 - **Characters** (`character/`): everyone is the same model, `assets/animated/soldier.blend`. `CharacterMotion` (`character_motion.h`, simulation data): position, level, path; `SendCharacterTo(motion, world, tile)`, `UpdateCharacterMotion` (re-plans when the world's revision changes). `CharacterView` (`character_view.h`, one shared, owned by `Game`): `Animate(id, motion, simSeconds)` cross-fades idle and run through one `Animator` layer per clip, with the run rate following the speed; `Draw(scope, id, motion, tint)`. **Per-character color**: the body material is near white, so `tint` is the body's color (the joints stay near black); the model isn't touched. Ids come from `GameState::nextCharacterId`. `CrewMember` has `role` (`CrewRole::Boss` / `Soldier`) and `tint`; the boss is the one saturated color (red), so keep other crew dull.
 - **Views** (`scene.h`, `scenes/`): `IScene` (name, clear color, `Update(const SceneFrame&)`, `Draw(SceneRenderers)`, `OnDeactivate`, `RegisterCheats`), one per `ViewId`: `WarehouseScene`, `LairScene`, `CityScene`, built with `SceneServices`. Scenes keep no game state. `LevelView` (`scenes/level_view.h`) is what the 3D ones share: an `OrbitCamera` on a level, lighting, drawing the grid and the crew, `TileUnderCursor`. Add scene meshes in its `drawExtras`.

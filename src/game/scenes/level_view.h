@@ -57,7 +57,7 @@ public:
 private:
     void DrawLevel(MeshRenderer::Scope& meshes) const;
     bool IsShownHere(const CharacterMotion& motion) const;
-    void DrawLawTags(const SceneFrame& frame) const;
+    void DrawTags(const SceneFrame& frame) const;
 
     const SceneServices m_services;
     WorldLevel          m_level;

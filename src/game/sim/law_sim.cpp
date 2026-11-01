@@ -172,7 +172,8 @@ namespace
 
         for (const CrewMember& member : state.crew)
         {
-            if (member.away || member.role == CrewRole::Boss || member.jobId != 0 || member.motion.level != agent.motion.level)
+            // A tired man off work counts as idle: only a proper room hides him.
+            if (member.away || member.role == CrewRole::Boss || (member.jobId != 0 && member.jobId != kRestJobId) || member.motion.level != agent.motion.level)
                 continue;
             if (FlatDistance(member.motion.position, at) > kSightRadius || !HasClearLine(state.world, agent.motion.level, at, member.motion.position, 0.0f))
                 continue;

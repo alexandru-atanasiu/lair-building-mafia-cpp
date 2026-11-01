@@ -491,7 +491,7 @@ namespace
     // True if `member` can be given a crate: free, here, not the boss, and not partway down a staircase.
     bool CanHire(const GameState& state, const CrewMember& member)
     {
-        if (member.away || member.jobId != 0 || member.role == CrewRole::Boss)
+        if (member.away || member.jobId != 0 || member.role == CrewRole::Boss || !IsFitForWork(state, member))
             return false;
         const TileCoord under = state.world.WorldToTile(member.motion.level, member.motion.position);
         return state.world.GetTile(under).kind != TileKind::Stairwell;
