@@ -79,6 +79,10 @@ go easier.
   crates from the lair's storage up to the bay, and it drives out. When it gets back the goods are sold. Each run has a
   small chance of being stopped, which raises heat and loses the cargo; the chance grows with heat and with how many
   crates it carries.
+- **The truck queue (as built).** There is one truck, and orders placed while it's out wait their turn, up to five, each
+  starting its hours when the one before has left. Goods are paid for when ordered and can be cancelled for a full refund
+  until they set off. A queued ship-out is free and takes whatever is there when it loads. A truck waiting for crew or
+  room holds up the queue, though Ship out still turns a truck stuck for room round at once.
 - **Inspections, raids and assaults** all come in through the warehouse. An inspection stays on the ground floor; a raid
   or an assault goes downstairs, unless the staircase is hidden behind a false wall (a late-game build), which the police
   must find first.
@@ -413,7 +417,7 @@ This section overrides *Heat*, *Raids* and *Busts and moving house* above for th
 - **A raid** comes at heat 60 and evidence 60 together, with six game hours' warning (no lookouts or captain needed: a Tip-off is a possible later feature).
   There is no search result and no clean-up command: every raid is what the design calls a bust.
 - **Moving house** keeps the layout and loses all crates, half the built objects at random, 30% of loose money and 15% of what's in the vault. Men in the building are
-  arrested at 50% for 24 hours. Nothing is carried out, and no choice of new front is offered: the same map is the new premises. Heat and evidence go to 0.
+  arrested at 50% for 24 hours. Orders waiting for the truck are lost, unrefunded, like a truck already on its way. Nothing is carried out, and no choice of new front is offered: the same map is the new premises. Heat and evidence go to 0.
 - **The third raid** ends the game, with a summary and a new game. There's no indictment at heat 100.
 - **Contraband** went from heat 9 to 18 a shipment, and each crate not on a shelf adds 0.1 heat an hour, so that high-value goods carry real risk.
 - **Not built:** rival families and assaults, inspectors as a separate system, resist switch, clean-up, lookouts, loyalty, wages.

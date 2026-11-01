@@ -17,6 +17,10 @@ namespace
     constexpr float kCarrierRow  = 22.0f;
     constexpr float kPaymentRow  = 20.0f;
     constexpr float kOrderButton = 84.0f;
+    constexpr float kQueueGap     = 8.0f; // between the main panel and the queue's
+    constexpr float kQueueWidth   = 370.0f;
+    constexpr float kQueueRow     = 44.0f;
+    constexpr float kCancelButton = 64.0f;
 
     const Color kDim      = { 0.72f, 0.69f, 0.62f, 1.0f };
     const Color kWarning  = { 0.95f, 0.70f, 0.30f, 1.0f };
@@ -56,7 +60,7 @@ namespace
         name.bold = true;
         ui.Label({ x, y + 2.0f }, kind.name, name);
 
-        const int  room = std::max(CrateCapacity(state) - state.crates, 0);
+        const int  room = GetCrateRoomAfterQueue(state);
         const bool fits = room >= kind.crates;
         char       detail[96];
         if (fits)
@@ -76,13 +80,95 @@ namespace
             OrderShipment(state, kindIndex);
         if (ui.IsHovered({ x, y, width, kOrderRow - 4.0f }))
         {
-            char tip[240];
-            snprintf(tip, sizeof(tip), "%d crates of %s: costs %s now.\nThe truck arrives in %d %s and brings %d heat.\nSold on, they pay %s (a profit of %s).%s%s",
-                     kind.crates, kind.lowerName, WarehouseMoneyText(kind.cost).c_str(), kind.hours, kind.hours == 1 ? "hour" : "hours", (int)kind.heat,
+            const int ahead = GetTrucksAhead(state);
+            char      when[96];
+            if (ahead > 0)
+                snprintf(when, sizeof(when), "Queued with %d ahead, then the truck takes %d %s", ahead, kind.hours, kind.hours == 1 ? "hour" : "hours");
+            else
+                snprintf(when, sizeof(when), "The truck arrives in %d %s", kind.hours, kind.hours == 1 ? "hour" : "hours");
+            char tip[320];
+            snprintf(tip, sizeof(tip), "%d crates of %s: costs %s now.\n%s and brings %d heat.\nSold on, they pay %s (a profit of %s).%s%s",
+                     kind.crates, kind.lowerName, WarehouseMoneyText(kind.cost).c_str(), when, (int)kind.heat,
                      WarehouseMoneyText(kind.salePerCrate * kind.crates).c_str(), WarehouseMoneyText(kind.salePerCrate * kind.crates - kind.cost).c_str(),
                      button.disabled ? "\n" : "", button.disabled ? why : "");
             ui.Tooltip(tip);
         }
+    }
+
+    // Beside the main panel, so the order buttons don't move as it grows. Only while there's a queue.
+    void DrawQueuePanel(Ui& ui, GameState& state, float top)
+    {
+        const WarehouseSim& sim = state.warehouse;
+        if (sim.queue.empty())
+            return;
+
+        const float inner = kQueueWidth - 2.0f * kMargin;
+
+        Ui::TextStyle body;
+        body.size = 14.0f;
+
+        // A held truck is why nothing here is moving.
+        std::string held;
+        if (sim.hold == TruckHold::NoCrew)
+            held = "Held up: the truck is waiting for someone to carry its crates. Nothing here starts until it leaves.";
+        else if (sim.hold == TruckHold::NoRoom)
+            held = "Held up: the warehouse is full. Nothing here starts until the truck leaves: Ship out sends it off now.";
+        if (!held.empty())
+            held = ui.WrapText(held, inner - 4.0f, body.size);
+        const float heldHeight = held.empty() ? 0.0f : (float)CountLines(held) * ui.GetLineHeight(body.size) + 8.0f;
+
+        const float left   = kPanelLeft + kPanelWidth + kQueueGap;
+        const float height = 44.0f + heldHeight + kQueueRow * (float)sim.queue.size() + 6.0f;
+        const float x      = left + kMargin;
+        float       y      = top;
+        ui.Panel({ left, y, kQueueWidth, height });
+        y += 10.0f;
+
+        Ui::TextStyle title;
+        title.size = 20.0f;
+        title.bold = true;
+        ui.Label({ x, y }, "Waiting for the truck", title);
+        char count[32];
+        snprintf(count, sizeof(count), "%d of %d", (int)sim.queue.size(), kMaxQueuedTrucks);
+        Ui::TextStyle countStyle = body;
+        countStyle.color = kDim;
+        countStyle.align = Ui::Align::Right;
+        ui.Label({ x + inner, y + 4.0f }, count, countStyle);
+        y += 34.0f;
+
+        if (!held.empty())
+        {
+            Ui::TextStyle heldStyle = body;
+            heldStyle.color = kWarning;
+            heldStyle.bold  = true;
+            ui.Label({ x, y }, held, heldStyle);
+            y += heldHeight;
+        }
+
+        int cancel = -1;
+        for (int i = 0; i < (int)sim.queue.size(); ++i)
+        {
+            const QueuedTruck& truck = sim.queue[(size_t)i];
+
+            Ui::TextStyle name;
+            name.bold = true;
+            ui.Label({ x, y }, std::to_string(i + 1) + ". " + GetQueuedTruckName(truck), name);
+
+            Ui::TextStyle detail = body;
+            detail.color = kDim;
+            ui.Label({ x, y + 20.0f }, DescribeQueuedTruck(truck), detail);
+
+            const UiRect button = { x + inner - kCancelButton, y, kCancelButton, 20.0f }; // clear of the line below
+            Ui::ButtonStyle style;
+            style.textSize = 14.0f;
+            if (ui.Button(button, "Cancel", style))
+                cancel = i;
+            if (ui.IsHovered(button))
+                ui.Tooltip(truck.paid > 0 ? "Call it off: " + WarehouseMoneyText(truck.paid) + " back." : std::string("Call it off."));
+            y += kQueueRow;
+        }
+        if (cancel >= 0)
+            CancelQueuedTruck(state, cancel);
     }
 }
 
@@ -108,6 +194,7 @@ void DrawWarehousePanel(Ui& ui, GameState& state)
 
     const float x = kPanelLeft + kMargin;
     float       y = ui.GetContentTop() + kTopGap;
+    DrawQueuePanel(ui, state, y);
     ui.Panel({ kPanelLeft, y, kPanelWidth, height });
     y += 10.0f;
 
@@ -157,13 +244,20 @@ void DrawWarehousePanel(Ui& ui, GameState& state)
         const int64_t value = ShipOutValue(state);
         Ui::TextStyle name;
         name.bold = true;
+        const bool queues = ShipOutWouldQueue(state);
         char label[48];
-        snprintf(label, sizeof(label), "Sell %d %s", count, count == 1 ? "crate" : "crates");
+        if (queues)
+            snprintf(label, sizeof(label), "Sell later");
+        else
+            snprintf(label, sizeof(label), "Sell %d %s", count, count == 1 ? "crate" : "crates");
         ui.Label({ x, y + 2.0f }, label, name);
 
         Ui::TextStyle detail = body;
         detail.color = kDim;
-        ui.Label({ x, y + 23.0f }, count > 0 ? "Pays " + WarehouseMoneyText(value) + " after it leaves" : std::string("Nothing to sell yet"), detail);
+        std::string detailText = count > 0 ? "Pays " + WarehouseMoneyText(value) + " after it leaves" : std::string("Nothing to sell yet");
+        if (queues)
+            detailText = "Queues: counted when it loads";
+        ui.Label({ x, y + 23.0f }, detailText, detail);
 
         const char*     why = "";
         Ui::ButtonStyle button;
@@ -173,6 +267,8 @@ void DrawWarehousePanel(Ui& ui, GameState& state)
         if (ui.IsHovered({ x, y, inner, kOrderRow - 4.0f }))
         {
             std::string tip = "Sends the truck to take crates, up to its load: your crew carry them out,\nit drives off, and the money comes in later.";
+            if (queues)
+                tip += "\nThe truck is busy, so this waits its turn: what it takes and pays\ndepends on what's in the warehouse by then.";
             if (button.disabled)
                 tip += std::string("\n") + why;
             ui.Tooltip(tip);
