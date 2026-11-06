@@ -60,7 +60,7 @@ void LairScene::Update(const SceneFrame& frame)
     m_tools.BuildUi(frame.ui, m_view.GetCamera());
     m_view.Update(frame);
     m_view.GetLighting().light.position = m_view.GetCamera().GetFocus() + Vec3{ 0.0f, kLampHeight, 0.0f };
-    m_lair.Update(m_view.GetCamera().GetCamera(), frame.realSeconds, frame.sim.simSeconds);
+    m_lair.Update(frame.sim.simSeconds);
     m_tools.UpdateWorld(frame, m_view.GetCamera());
 }
 

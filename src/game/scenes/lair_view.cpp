@@ -2,7 +2,6 @@
 
 #include "level_view.h"
 #include "core/fatal.h"
-#include "render/camera_3d.h"
 #include "render/mesh.h"
 #include "render/mesh_cache.h"
 
@@ -22,13 +21,7 @@ namespace
     constexpr const char* kStairsMesh    = "meshes/world/stairs_cut.mesh";
     constexpr const char* kChipMesh      = "meshes/world/rock_chip.mesh";
 
-    // Cutaway.
-    constexpr float kLowEarth     = 0.16f; // earth in front of a dug tile sinks to this
-    constexpr float kLowWall      = 0.42f; // walls in front of a floor: a curb that still shows the room
-    constexpr float kEaseRate     = 9.0f;  // per second, toward the target height
-    constexpr float kSampleStep   = 0.4f;  // metres along the line of sight
-    constexpr float kEarthAcross  = 0.9f;  // sight lines side by side across a block of earth
-    constexpr float kWallAcross   = 0.75f; // and along a wall
+    constexpr float kLowEarth     = 0.16f; // the rock's colour is kRockCut at this height, kRockHigh at full
 
     // Doors.
     constexpr float kDoorGap      = 1.2f;  // py/create_meshes.py
@@ -95,133 +88,10 @@ LairView::LairView(const SceneServices& services)
                 loaded.parts.push_back({ LoadOrFatal(cache.Load(part.mesh), part.mesh), part.color });
         m_objectParts.push_back(std::move(loaded));
     }
-
-    const size_t tiles = (size_t)m_width * (size_t)m_depth;
-    m_earthHeight.assign(tiles, kWallHeight);
-    m_earthTarget.assign(tiles, kWallHeight);
-    m_edgeXHeight.assign((size_t)(m_width + 1) * (size_t)m_depth, kWallHeight);
-    m_edgeXTarget.assign((size_t)(m_width + 1) * (size_t)m_depth, kWallHeight);
-    m_edgeZHeight.assign((size_t)m_width * (size_t)(m_depth + 1), kWallHeight);
-    m_edgeZTarget.assign((size_t)m_width * (size_t)(m_depth + 1), kWallHeight);
 }
 
-bool LairView::IsOpen(const TileCoord& tile) const
+void LairView::Update(float simSeconds)
 {
-    if (!m_state.world.InBounds(tile))
-        return false;
-    const TileKind kind = m_state.world.GetTile(tile).kind;
-    return kind == TileKind::Floor || kind == TileKind::Stairwell;
-}
-
-float LairView::AllowedHeight(Vec3 from, Vec3 across, const TileCoord* self) const
-{
-    const WorldGrid& world = m_state.world;
-    float allowed = kWallHeight;
-
-    for (const float side : { 0.0f, 1.0f, -1.0f })
-    {
-        const Vec3  start = from + across * side;
-        const float dx = start.x - m_cameraPosition.x;
-        const float dz = start.z - m_cameraPosition.z;
-        const float flat = std::sqrt(dx * dx + dz * dz);
-        if (flat < 0.01f)
-            continue; // straight below the camera: nothing hides anything
-
-        const float rise = std::max(m_cameraPosition.y - kFloorY, 0.1f) / flat; // sight line's slope
-        const float reach = allowed / rise;
-        const Vec3  dir = { dx / flat, 0.0f, dz / flat };
-
-        float exit = 0.0f; // where the line leaves this block
-        for (float s = 0.03f; s < reach + kTileSize * 1.5f; s += kSampleStep)
-        {
-            const TileCoord tile = world.WorldToTile(kLevel, start + dir * s);
-            if (self && tile == *self)
-            {
-                exit = s;
-                continue;
-            }
-            const float gap = std::max(s - exit - kSampleStep, 0.0f);
-            if (gap * rise >= allowed)
-                break;
-            if (IsOpen(tile))
-            {
-                allowed = gap * rise;
-                break;
-            }
-        }
-    }
-    return allowed;
-}
-
-void LairView::ComputeTargets()
-{
-    const WorldGrid& world = m_state.world;
-    for (int z = 0; z < m_depth; ++z)
-    {
-        for (int x = 0; x < m_width; ++x)
-        {
-            const TileCoord tile = { kLevel, x, z };
-            const Vec3      center = world.TileCenter(tile);
-            if (world.GetTile(tile).kind == TileKind::Earth)
-            {
-                // Only look across the line of sight: toward the camera doesn't matter.
-                const float dx = center.x - m_cameraPosition.x;
-                const float dz = center.z - m_cameraPosition.z;
-                const float flat = std::max(std::sqrt(dx * dx + dz * dz), 0.01f);
-                const Vec3  across = Vec3{ -dz / flat, 0.0f, dx / flat } * kEarthAcross;
-                m_earthTarget[TileIndex(x, z)] = std::max(AllowedHeight(center, across, &tile), kLowEarth);
-            }
-        }
-    }
-
-    // Any edge that shows something; the others cost nothing to compute lazily, but pending rooms
-    // ask about edges that aren't walls yet, so all edges next to floor get a target.
-    for (int z = 0; z < m_depth; ++z)
-    {
-        for (int x = -1; x < m_width; ++x)
-        {
-            if (z < 0)
-                continue;
-            const TileCoord a = { kLevel, x, z };
-            const TileCoord b = { kLevel, x + 1, z };
-            if (!IsOpen(a) && !IsOpen(b))
-                continue;
-            const LairEdge edge = { a, EdgeSide::PosX };
-            m_edgeXTarget[EdgeXIndex(x, z)] = std::max(AllowedHeight(GetLairEdgeCenter(m_state, edge), Vec3{ 0.0f, 0.0f, kWallAcross }, nullptr), kLowWall);
-        }
-    }
-    for (int z = -1; z < m_depth; ++z)
-    {
-        for (int x = 0; x < m_width; ++x)
-        {
-            const TileCoord a = { kLevel, x, z };
-            const TileCoord b = { kLevel, x, z + 1 };
-            if (!IsOpen(a) && !IsOpen(b))
-                continue;
-            const LairEdge edge = { a, EdgeSide::PosZ };
-            m_edgeZTarget[EdgeZIndex(x, z)] = std::max(AllowedHeight(GetLairEdgeCenter(m_state, edge), Vec3{ kWallAcross, 0.0f, 0.0f }, nullptr), kLowWall);
-        }
-    }
-}
-
-void LairView::Update(const Camera3D& camera, float realSeconds, float simSeconds)
-{
-    const Vec3 position = camera.GetPosition();
-    const bool moved = Length(position - m_cameraPosition) > 0.01f;
-    if (moved || m_targetsRevision != m_state.world.GetRevision())
-    {
-        m_cameraPosition  = position;
-        m_targetsRevision = m_state.world.GetRevision();
-        ComputeTargets();
-    }
-
-    for (size_t i = 0; i < m_earthHeight.size(); ++i)
-        m_earthHeight[i] = EaseCutaway(m_earthHeight[i], m_earthTarget[i], kEaseRate, realSeconds);
-    for (size_t i = 0; i < m_edgeXHeight.size(); ++i)
-        m_edgeXHeight[i] = EaseCutaway(m_edgeXHeight[i], m_edgeXTarget[i], kEaseRate, realSeconds);
-    for (size_t i = 0; i < m_edgeZHeight.size(); ++i)
-        m_edgeZHeight[i] = EaseCutaway(m_edgeZHeight[i], m_edgeZTarget[i], kEaseRate, realSeconds);
-
     m_time += simSeconds;
 
     // Doors swing away from whoever comes near, and fall shut behind them.
@@ -262,7 +132,7 @@ float LairView::GetSurfaceHeight(const TileCoord& tile) const
 {
     if (tile.level != kLevel || !m_state.world.InBounds(tile) || m_state.world.GetTile(tile).kind != TileKind::Earth)
         return 0.0f;
-    float height = m_earthHeight[TileIndex(tile.x, tile.z)];
+    float height = kWallHeight;
     if (const LairJob* job = FindLairDigJob(m_state, tile))
         height = std::max(height * (1.0f - job->progress / job->duration), 0.1f);
     return height;
@@ -270,9 +140,9 @@ float LairView::GetSurfaceHeight(const TileCoord& tile) const
 
 float LairView::GetEdgeHeight(const LairEdge& edge) const
 {
-    if (edge.tile.z < 0 || edge.tile.z >= m_depth + 1 || edge.tile.x < -1 || edge.tile.x >= m_width)
+    if (edge.tile.z < -1 || edge.tile.z >= m_depth || edge.tile.x < -1 || edge.tile.x >= m_width)
         return 0.0f;
-    return edge.side == EdgeSide::PosX ? m_edgeXHeight[EdgeXIndex(edge.tile.x, edge.tile.z)] : m_edgeZHeight[EdgeZIndex(edge.tile.x, edge.tile.z)];
+    return kWallHeight;
 }
 
 bool LairView::PickTile(Vec3 origin, Vec3 direction, TileCoord& tile) const
@@ -377,7 +247,7 @@ void LairView::Draw(MeshRenderer::Scope& meshes) const
             DrawWall(meshes, edge, height, kWallColor);
             return;
         }
-        // A door: the frame sinks with the wall; the leaf too, but keeps enough height to be seen swinging.
+        // A door: the frame and leaf stand as tall as the wall.
         const float scale     = height / kWallHeight;
         const float leafScale = std::max(scale, 0.3f);
         meshes.Draw(*m_doorFrame, EdgeTransform(edge) * Mat4::Scale({ 1.0f, scale, 1.0f }), kFrameColor);
