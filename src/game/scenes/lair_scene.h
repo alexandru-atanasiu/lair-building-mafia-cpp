@@ -7,7 +7,7 @@
 
 #include <memory>
 
-// The underground level: the lair. The rules are in sim/lair_sim.h, the drawing and its cutaway in
+// The underground level: the lair. The rules are in sim/lair_sim.h, the drawing in
 // lair_view.h, the build menu and the mouse in lair_tools.h.
 class LairScene final : public IScene
 {

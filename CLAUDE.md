@@ -118,7 +118,7 @@ Digging, rooms, doors, objects and the crew's work, on the underground level.
 | `src/game/sim/lair_sim.h` | Tuning constants, state, and the API: `FindLairRoom*`, `GetLairRoomStatus`, `IsLairTileReachable`, `ExtraCrateCapacity` (shelves, which raise `CrateCapacity`), `ProtectedMoney`, and `Check*` / `Place*` / `Delete*`. |
 | `src/game/sim/lair_build.cpp` | What may be placed or deleted, and doing it. |
 | `src/game/sim/lair_sim.cpp` | `Tick`: the job queue, workers, keeping crew out of sites, idle crew using rooms. |
-| `src/game/scenes/lair_view.*` | Drawing and the cutaway. |
+| `src/game/scenes/lair_view.*` | Drawing. |
 | `src/game/scenes/lair_tools.*` | The build menu, room labels, the mouse on the world, ghosts. |
 
 - **Everything placed is paid at once and becomes a `LairJob`.** Cancelling (right click) refunds it all; deleting something built refunds `kLairRefundFraction`. Builds go oldest first, then digs nearest first; each goes to the nearest free crew.
@@ -126,7 +126,7 @@ Digging, rooms, doors, objects and the crew's work, on the underground level.
 - **Judging a change:** `lair_build.cpp` tests against `ProjectWorld` (the world with the whole queue finished) and floods from the foot of the stairs before and after. Anything reachable before and not after refuses it, with the reason in words.
 - **Rooms:** a room's walls wait at 100% until nobody stands inside, so nobody is walled in; idle crew are sent out first. A wall shared with another room stays when one is deleted, as does any door in it.
 - **The outermost ring of tiles can't be dug**, so walls never lie on the grid's border. The foot of the stairs stays outside rooms.
-- **Cutaway** (`LairView::AllowedHeight`): along each sight line, an earth block or wall may only be as tall as keeps the first dug tile behind it in view. It's recomputed when the camera or world changes, and heights ease toward it. Picking uses the shown heights, so use `LairView::PickTile` or the dev driver's `tile`, not the ground plane, to aim at earth. A click aimed at a low block behind a tall one correctly hits the tall one.
+- **No cutaway:** earth and walls always stand at full height, whatever the camera does; only a dig in progress lowers its block, and a room's walls rise as it's built. Earth hides the floor behind it, so use `LairView::PickTile` or the dev driver's `tile`, not the ground plane, to aim at the world: a click aimed past a block hits the block.
 - **Translucent drawing:** `MeshRenderer(device, MeshRenderStyle::Translucent)` blends by the color's alpha and doesn't write depth. The lair scene owns one for marks, blueprints and ghosts, drawn after the crew.
 - **Room labels** sit on the room's nearest wall and nearly vanish while they'd cover someone (`BuildLabels`).
 - The lair camera uses a narrow lens (`OrbitCamera::SetVerticalFov`, 32 degrees) from further away, so people at the screen's edges stand upright. `SetDefaultView` sets what `Reset` and the driver's `focus` go to. Middle-drag pans in every 3D view.
