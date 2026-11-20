@@ -299,8 +299,6 @@ void LairView::Draw(MeshRenderer::Scope& meshes) const
     // Objects.
     for (const LairObject& object : m_state.lair.objects)
     {
-        if (!object.built)
-            continue;
         const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
         const Mat4 at = Mat4::Translation(GetLairObjectCenter(m_state, type, object.tile, object.rotation)) * Mat4::RotationY((float)object.rotation * 0.5f * kPi);
         for (const auto& part : m_objectParts[(size_t)object.type].parts)
@@ -333,11 +331,10 @@ void LairView::DrawDoorGhost(MeshRenderer::Scope& scope, const LairEdge& edge, c
     scope.Draw(*m_doorLeaf, EdgeTransform(edge) * Mat4::Translation({ -0.5f * kDoorGap, 0.0f, 0.0f }) * Mat4::Scale({ 1.0f, height / kWallHeight, 1.5f }), color, 1.0f);
 }
 
-void LairView::DrawObjectGhost(MeshRenderer::Scope& scope, int type, const TileCoord& tile, int rotation, const Color& tint, bool tinted, float grow) const
+void LairView::DrawObjectGhost(MeshRenderer::Scope& scope, int type, const TileCoord& tile, int rotation, const Color& tint, bool tinted) const
 {
     const LairObjectType& def = GetLairObjectTypes()[(size_t)type];
-    const Mat4 at = Mat4::Translation(GetLairObjectCenter(m_state, def, tile, rotation)) * Mat4::RotationY((float)rotation * 0.5f * kPi) *
-                    Mat4::Scale({ 1.0f, std::max(grow, 0.05f), 1.0f });
+    const Mat4 at = Mat4::Translation(GetLairObjectCenter(m_state, def, tile, rotation)) * Mat4::RotationY((float)rotation * 0.5f * kPi);
     for (const auto& part : m_objectParts[(size_t)type].parts)
     {
         Color color = tinted ? tint : part.second;
@@ -359,18 +356,6 @@ void LairView::DrawOverlays(MeshRenderer::Scope& translucent) const
             for (const LairDoor& door : m_state.lair.doors)
                 if (door.id == job.target)
                     DrawDoorGhost(translucent, door.edge, kDoorBlueprint);
-        }
-        else if (job.kind == LairJobKind::Object)
-        {
-            for (const LairObject& object : m_state.lair.objects)
-            {
-                if (object.id != job.target)
-                    continue;
-                const float progress = std::min(job.progress / job.duration, 1.0f);
-                DrawObjectGhost(translucent, object.type, object.tile, object.rotation, { 1.0f, 1.0f, 1.0f, 0.45f + 0.45f * progress }, false);
-                for (const TileCoord& tile : GetLairObjectTiles(GetLairObjectTypes()[(size_t)object.type], object.tile, object.rotation))
-                    DrawTileOverlay(translucent, tile, kSiteOverlay);
-            }
         }
     }
 

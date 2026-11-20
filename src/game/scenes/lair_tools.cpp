@@ -126,11 +126,6 @@ void LairTools::BuildLabels(Ui& ui, const OrbitCamera& camera)
                 if (door.id == job.target)
                     where = GetLairEdgeCenter(m_state, door.edge) + Vec3{ 0.0f, 1.2f, 0.0f };
             break;
-        case LairJobKind::Object:
-            for (const LairObject& object : m_state.lair.objects)
-                if (object.id == job.target)
-                    where = GetLairObjectCenter(m_state, GetLairObjectTypes()[(size_t)object.type], object.tile, object.rotation) + Vec3{ 0.0f, 1.8f, 0.0f };
-            break;
         }
         Vec2 at;
         if (toUi(where, at))

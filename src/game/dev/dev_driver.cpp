@@ -90,7 +90,7 @@ namespace
                 << ":" << (door.built ? "built" : "pending");
         for (const LairObject& object : state.lair.objects)
             out << " object" << object.id << "=" << GetLairObjectTypes()[(size_t)object.type].key << ":" << object.tile.x << ":" << object.tile.z << ":"
-                << object.rotation << ":" << (object.built ? "built" : "pending");
+                << object.rotation;
         return out.str();
     }
 

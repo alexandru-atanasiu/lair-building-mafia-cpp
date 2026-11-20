@@ -108,13 +108,6 @@ namespace
         for (const LairDoor& door : state.lair.doors)
             if (!door.built)
                 SetEdge(world, door.edge, EdgeKind::Door);
-        for (const LairObject& object : state.lair.objects)
-        {
-            const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
-            if (!object.built && type.solid)
-                for (const TileCoord& tile : GetLairObjectTiles(type, object.tile, object.rotation))
-                    world.SetTileSolid(tile, true);
-        }
         return world;
     }
 
@@ -324,7 +317,7 @@ LairRoomStatus GetLairRoomStatus(const GameState& state, const LairRoom& room)
             if (strcmp(objectType.key, need.object) == 0)
                 needed = &objectType;
         for (const LairObject& object : state.lair.objects)
-            if (object.room == room.id && object.built && &GetLairObjectTypes()[(size_t)object.type] == needed)
+            if (object.room == room.id && &GetLairObjectTypes()[(size_t)object.type] == needed)
                 ++have;
         if (have < need.count && missing.empty())
         {
@@ -401,7 +394,7 @@ int ExtraCrateCapacity(const GameState& state)
     {
         const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
         const LairRoom*       room = FindLairRoom(state, object.room);
-        if (object.built && type.crateCapacity > 0 && room && GetLairRoomStatus(state, *room).working)
+        if (type.crateCapacity > 0 && room && GetLairRoomStatus(state, *room).working)
             capacity += type.crateCapacity;
     }
     return capacity;
@@ -414,7 +407,7 @@ int64_t ProtectedMoney(const GameState& state)
     {
         const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
         const LairRoom*       room = FindLairRoom(state, object.room);
-        if (object.built && type.protectedMoney > 0 && room && GetLairRoomStatus(state, *room).working)
+        if (type.protectedMoney > 0 && room && GetLairRoomStatus(state, *room).working)
             money += type.protectedMoney;
     }
     return std::min(money, std::max<int64_t>(state.money, 0));
@@ -589,7 +582,7 @@ LairCheck CheckDeleteLairRoom(const GameState& state, const LairRoom& room)
     // The objects and doors go too.
     for (const LairObject& object : state.lair.objects)
         if (object.room == room.id)
-            check.cost += RefundOf(object.paid, object.built);
+            check.cost += RefundOf(object.paid, true);
     ForEachBorderEdge(room.rect, [&](const LairEdge& edge) {
         if (const LairDoor* door = FindLairDoor(state, edge))
             if (!OtherRoomUsesEdge(state, room, edge))
@@ -612,9 +605,8 @@ LairCheck DeleteLairRoom(GameState& state, uint16_t roomId)
     {
         if (object.room != room.id)
             continue;
-        RemoveJob(state, LairJobKind::Object, object.id);
         const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
-        if (object.built && type.solid)
+        if (type.solid)
             for (const TileCoord& tile : GetLairObjectTiles(type, object.tile, object.rotation))
                 state.world.SetTileSolid(tile, false);
     }
@@ -825,7 +817,6 @@ LairCheck PlaceLairObject(GameState& state, int type, const TileCoord& tile, int
         return check;
     state.money -= check.cost;
 
-    const LairObjectType& def = GetLairObjectTypes()[(size_t)type];
     LairObject object;
     object.id       = state.lair.nextObjectId++;
     object.type     = type;
@@ -835,13 +826,13 @@ LairCheck PlaceLairObject(GameState& state, int type, const TileCoord& tile, int
     object.paid     = check.cost;
     state.lair.objects.push_back(object);
 
-    LairJob job;
-    job.id       = state.lair.nextJobId++;
-    job.kind     = LairJobKind::Object;
-    job.target   = object.id;
-    job.duration = def.buildSeconds;
-    job.paid     = check.cost;
-    state.lair.jobs.push_back(job);
+    // Finished at once. Anyone standing where it goes steps aside (ClearBuildSites), and walkers
+    // re-plan around it through the world's revision.
+    const LairObjectType& def = GetLairObjectTypes()[(size_t)type];
+    if (def.solid)
+        for (const TileCoord& c : GetLairObjectTiles(def, tile, rotation))
+            state.world.SetTileSolid(c, true);
+    RefreshLairReachable(state);
     return check;
 }
 
@@ -849,7 +840,7 @@ LairCheck CheckDeleteLairObject(const GameState& state, const LairObject& object
 {
     (void)state;
     LairCheck check;
-    check.cost = RefundOf(object.paid, object.built);
+    check.cost = RefundOf(object.paid, true);
     return check;
 }
 
@@ -869,9 +860,8 @@ LairCheck DeleteLairObject(GameState& state, int objectId)
     const LairCheck check = CheckDeleteLairObject(state, *found);
 
     state.money += check.cost;
-    RemoveJob(state, LairJobKind::Object, objectId);
     const LairObjectType& type = GetLairObjectTypes()[(size_t)found->type];
-    if (found->built && type.solid)
+    if (type.solid)
         for (const TileCoord& tile : GetLairObjectTiles(type, found->tile, found->rotation))
             state.world.SetTileSolid(tile, false);
     state.lair.objects.erase(found);
@@ -883,14 +873,6 @@ bool CancelLairJobAt(GameState& state, const TileCoord& tile)
 {
     if (CancelLairDig(state, tile))
         return true;
-    if (const LairObject* object = FindLairObjectAt(state, tile))
-    {
-        if (!object->built)
-        {
-            DeleteLairObject(state, object->id);
-            return true;
-        }
-    }
     if (const LairRoom* room = FindLairRoomAt(state, tile))
     {
         if (!room->built)

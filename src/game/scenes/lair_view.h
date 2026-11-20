@@ -39,7 +39,7 @@ public:
     void DrawWallGhost(MeshRenderer::Scope& scope, const LairEdge& edge, float height, const Color& color) const;
     void DrawDoorGhost(MeshRenderer::Scope& scope, const LairEdge& edge, const Color& color) const;
     // `tint`'s alpha is used for all parts; with tinted set, its color too.
-    void DrawObjectGhost(MeshRenderer::Scope& scope, int type, const TileCoord& tile, int rotation, const Color& tint, bool tinted, float grow = 1.0f) const;
+    void DrawObjectGhost(MeshRenderer::Scope& scope, int type, const TileCoord& tile, int rotation, const Color& tint, bool tinted) const;
 
 private:
     void  DrawEarth(MeshRenderer::Scope& meshes, const TileCoord& tile) const;
