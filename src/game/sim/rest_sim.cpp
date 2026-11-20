@@ -23,7 +23,7 @@ namespace
 
     bool IsBedWorking(const GameState& state, const LairObject& object)
     {
-        if (!object.built || !GetLairObjectTypes()[(size_t)object.type].bed)
+        if (!GetLairObjectTypes()[(size_t)object.type].bed)
             return false;
         const LairRoom* room = FindLairRoom(state, object.room);
         return room && GetLairRoomStatus(state, *room).working;
@@ -56,8 +56,6 @@ namespace
             const TileCoord next = { bed.tile.level, bed.tile.x + s.dx, bed.tile.z + s.dz };
             if (!world.IsWalkable(next) || world.GetEdge(bed.tile, s.side) == EdgeKind::Wall || !IsLairTileReachable(state, next))
                 continue;
-            if (const LairObject* other = FindLairObjectAt(state, next); other && !other->built)
-                continue; // about to have something on it
             bool shared = false;
             for (const CrewMember& other : state.crew)
                 shared = shared || (other.id != member.id && other.restBed != 0 && other.restSpot == next);
@@ -78,10 +76,8 @@ namespace
     {
         if (tile.level != kLevel || !state.world.IsWalkable(tile) || state.world.GetTile(tile).kind != TileKind::Floor || !IsLairTileReachable(state, tile))
             return false;
-        if (const LairRoom* room = FindLairRoomAt(state, tile); room && !room->built)
-            return false;
-        const LairObject* object = FindLairObjectAt(state, tile);
-        return !object || object->built;
+        const LairRoom* room = FindLairRoomAt(state, tile);
+        return !room || room->built;
     }
 
     void SendToWait(GameState& state, CrewMember& member)

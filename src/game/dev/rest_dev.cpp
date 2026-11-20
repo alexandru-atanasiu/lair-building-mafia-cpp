@@ -37,7 +37,7 @@ std::string ExecuteRestCommand(GameState& state, std::istringstream& in)
         out << " beds=" << CountBeds(state) << " free=" << CountFreeBeds(state) << " off=" << CountMenOffWork(state) << " inbed=" << CountMenInBed(state);
         for (const LairObject& object : state.lair.objects)
         {
-            if (!object.built || !GetLairObjectTypes()[(size_t)object.type].bed)
+            if (!GetLairObjectTypes()[(size_t)object.type].bed)
                 continue;
             uint32_t user = 0;
             for (const CrewMember& member : state.crew)

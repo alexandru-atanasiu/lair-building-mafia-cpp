@@ -162,7 +162,7 @@ namespace
             {
                 for (const LairObject& object : state.lair.objects)
                 {
-                    if (object.room != room->id || !object.built || GetLairObjectTypes()[(size_t)object.type].evidence <= 0.0f)
+                    if (object.room != room->id || GetLairObjectTypes()[(size_t)object.type].evidence <= 0.0f)
                         continue;
                     if (std::find(agent.seenObjects.begin(), agent.seenObjects.end(), object.id) == agent.seenObjects.end())
                         agent.seenObjects.push_back(object.id);
@@ -611,11 +611,10 @@ void LawSim::MoveHouse(GameState& state)
     }
     const int cratesLost = AbandonWarehouse(state);
 
-    // Half the objects, at random. Things not yet built stay as jobs.
+    // Half the objects, at random.
     std::vector<int> built;
     for (const LairObject& object : state.lair.objects)
-        if (object.built)
-            built.push_back(object.id);
+        built.push_back(object.id);
     const int builtCount  = (int)built.size();
     const int objectsLost = (int)std::ceil((float)builtCount * kRaidObjectLoss);
     std::vector<std::string> lostNames;

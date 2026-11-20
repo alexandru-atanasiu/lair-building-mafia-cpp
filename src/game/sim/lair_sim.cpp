@@ -69,15 +69,25 @@ namespace
         return false;
     }
 
-    // A tile nobody should stand on just now: a room going up around it, an object about to.
+    // A tile nobody should stand on just now: a room going up around it.
     bool IsBuildSite(const GameState& state, const TileCoord& tile)
     {
         if (tile.level != kLevel)
             return false;
-        if (const LairRoom* room = FindLairRoomAt(state, tile); room && !room->built)
-            return true;
-        const LairObject* object = FindLairObjectAt(state, tile);
-        return object && !object->built;
+        const LairRoom* room = FindLairRoomAt(state, tile);
+        return room && !room->built;
+    }
+
+    // The tiles next to `tile` someone can stand on to reach it: walkable, an open step away.
+    void AddSpotsAround(const GameState& state, const TileCoord& tile, std::vector<TileCoord>& spots)
+    {
+        static constexpr EdgeSide kSides[4] = { EdgeSide::PosX, EdgeSide::NegX, EdgeSide::PosZ, EdgeSide::NegZ };
+        for (int i = 0; i < 4; ++i)
+        {
+            const TileCoord next = { tile.level, tile.x + kSteps[i][0], tile.z + kSteps[i][1] };
+            if (state.world.IsWalkable(next) && state.world.GetEdge(tile, kSides[i]) != EdgeKind::Wall && !IsBuildSite(state, next))
+                spots.push_back(next);
+        }
     }
 
     // Tiles a worker can do this job from. Every one is walkable and an open step from the work.
@@ -86,15 +96,7 @@ namespace
         spots.clear();
         const WorldGrid& world = state.world;
 
-        const auto addAround = [&](const TileCoord& tile) {
-            static constexpr EdgeSide kSides[4] = { EdgeSide::PosX, EdgeSide::NegX, EdgeSide::PosZ, EdgeSide::NegZ };
-            for (int i = 0; i < 4; ++i)
-            {
-                const TileCoord next = { tile.level, tile.x + kSteps[i][0], tile.z + kSteps[i][1] };
-                if (world.IsWalkable(next) && world.GetEdge(tile, kSides[i]) != EdgeKind::Wall && !IsBuildSite(state, next))
-                    spots.push_back(next);
-            }
-        };
+        const auto addAround = [&](const TileCoord& tile) { AddSpotsAround(state, tile, spots); };
 
         switch (job.kind)
         {
@@ -135,20 +137,6 @@ namespace
             }
             break;
         }
-        case LairJobKind::Object:
-        {
-            for (const LairObject& object : state.lair.objects)
-            {
-                if (object.id != job.target)
-                    continue;
-                const LairRoom* room = FindLairRoom(state, object.room);
-                if (!room || !room->built)
-                    break; // waits for its room
-                for (const TileCoord& tile : GetLairObjectTiles(GetLairObjectTypes()[(size_t)object.type], object.tile, object.rotation))
-                    addAround(tile);
-            }
-            break;
-        }
         }
     }
 
@@ -167,11 +155,6 @@ namespace
             for (const LairDoor& door : state.lair.doors)
                 if (door.id == job.target)
                     return GetLairEdgeCenter(state, door.edge);
-            break;
-        case LairJobKind::Object:
-            for (const LairObject& object : state.lair.objects)
-                if (object.id == job.target)
-                    return GetLairObjectCenter(state, GetLairObjectTypes()[(size_t)object.type], object.tile, object.rotation);
             break;
         }
         return state.world.TileCenter(spot);
@@ -408,18 +391,6 @@ namespace
                 }
             }
             break;
-        case LairJobKind::Object:
-            for (LairObject& object : state.lair.objects)
-            {
-                if (object.id != job.target)
-                    continue;
-                object.built = true;
-                const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
-                if (type.solid)
-                    for (const TileCoord& tile : GetLairObjectTiles(type, object.tile, object.rotation))
-                        state.world.SetTileSolid(tile, true);
-            }
-            break;
         }
     }
 
@@ -558,10 +529,10 @@ namespace
         }
 
         std::vector<TileCoord> around;
-        LairJob                probe;
-        probe.kind   = LairJobKind::Object;
-        probe.target = object.id;
-        GetWorkSpots(state, probe, around);
+        const LairRoom*        room = FindLairRoom(state, object.room);
+        if (room && room->built)
+            for (const TileCoord& tile : GetLairObjectTiles(type, object.tile, object.rotation))
+                AddSpotsAround(state, tile, around);
         for (size_t i = 0; i < around.size(); ++i)
         {
             const TileCoord& c = around[((size_t)member.id + i) % around.size()]; // crew spread around it
@@ -584,7 +555,7 @@ namespace
         for (const LairObject& other : state.lair.objects)
         {
             const LairObjectType& type = GetLairObjectTypes()[(size_t)other.type];
-            if (other.room != seat.room || !type.solid || !other.built)
+            if (other.room != seat.room || !type.solid)
                 continue;
             const Vec3  center = GetLairObjectCenter(state, type, other.tile, other.rotation);
             const float d      = Length(center - at);
@@ -619,7 +590,7 @@ namespace
         for (const LairObject& object : state.lair.objects)
         {
             const LairObjectType& type = GetLairObjectTypes()[(size_t)object.type];
-            if (!object.built || type.useSeconds <= 0.0f || type.bossSeat)
+            if (type.useSeconds <= 0.0f || type.bossSeat)
                 continue;
             const LairRoom* room = FindLairRoom(state, object.room);
             TileCoord       spot;
@@ -653,7 +624,7 @@ namespace
     {
         for (const LairObject& object : state.lair.objects)
         {
-            if (!object.built || !GetLairObjectTypes()[(size_t)object.type].bossSeat)
+            if (!GetLairObjectTypes()[(size_t)object.type].bossSeat)
                 continue;
             const LairRoom* room = FindLairRoom(state, object.room);
             if (room && GetLairRoomStatus(state, *room).working)

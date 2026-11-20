@@ -38,7 +38,6 @@ struct LairObjectType
     int         width = 1;          // footprint in tiles, along x before rotation
     int         depth = 1;          // along z before rotation
     int         cost = 0;
-    float       buildSeconds = 4.0f;
     bool        solid = true;       // blocks walking
     float       height = 1.0f;      // metres, for picking with the mouse
     LairObjectPart parts[kLairMaxObjectParts];
@@ -99,7 +98,6 @@ enum class LairJobKind : uint8_t
     Dig,
     Room,
     Door,
-    Object,
 };
 
 // A rectangle of tiles on the underground level, inclusive.
@@ -144,7 +142,6 @@ struct LairObject
     TileCoord tile;      // the footprint's lowest x and z
     int       rotation = 0; // quarter turns
     uint16_t  room = 0;
-    bool      built = false;
     int       paid = 0;
 };
 
@@ -153,7 +150,7 @@ struct LairJob
     int         id = 0;   // what a worker's CrewMember::jobId holds
     LairJobKind kind = LairJobKind::Dig;
     TileCoord   tile;     // Dig: the earth tile
-    int         target = 0; // Room / Door / Object: its id
+    int         target = 0; // Room / Door: its id
     float       progress = 0.0f; // work seconds done
     float       duration = 1.0f;
     int         paid = 0;
@@ -254,10 +251,11 @@ LairCheck PlaceLairRoom(GameState& state, int type, const LairRect& rect);
 LairCheck CheckLairDoor(const GameState& state, const LairEdge& edge);
 LairCheck PlaceLairDoor(GameState& state, const LairEdge& edge);
 LairCheck CheckLairObject(const GameState& state, int type, const TileCoord& tile, int rotation);
+// An object needs no builder: it stands there, finished, as soon as it's paid for.
 LairCheck PlaceLairObject(GameState& state, int type, const TileCoord& tile, int rotation);
 
-// Deleting: built things refund kLairRefundFraction, things not yet built are cancelled and refund
-// everything. `cost` of the check is the refund.
+// Deleting: built things (and objects, which always are) refund kLairRefundFraction, things not yet
+// built are cancelled and refund everything. `cost` of the check is the refund.
 LairCheck CheckDeleteLairDoor(const GameState& state, const LairDoor& door);
 LairCheck DeleteLairDoor(GameState& state, int doorId);
 LairCheck CheckDeleteLairObject(const GameState& state, const LairObject& object);
